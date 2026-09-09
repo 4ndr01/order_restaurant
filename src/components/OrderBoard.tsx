@@ -78,7 +78,7 @@ export default function OrderBoard({
   const categories = menu.categories;
 
   return (
-    <div className="flex min-h-full flex-col pb-28">
+    <div className={`flex min-h-full flex-col ${count > 0 ? "pb-32" : "pb-10"}`}>
       <header className="sticky top-0 z-20 border-b border-line bg-surface/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-5 py-4">
           <div>
@@ -94,7 +94,7 @@ export default function OrderBoard({
             <a
               key={category.id}
               href={`#cat-${category.id}`}
-              className="shrink-0 rounded-full border border-line px-3.5 py-1.5 text-sm text-muted transition hover:border-brand hover:text-brand"
+              className="flex min-h-11 shrink-0 items-center rounded-full border border-line px-4 text-sm text-muted transition hover:border-brand hover:text-brand"
             >
               {category.name}
             </a>
@@ -135,7 +135,7 @@ export default function OrderBoard({
                         <button
                           type="button"
                           onClick={() => setQuantity(item.id, 1)}
-                          className="shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+                          className="min-h-11 shrink-0 rounded-full bg-brand px-5 text-sm font-medium text-white transition hover:opacity-90"
                         >
                           Ajouter
                         </button>
@@ -158,11 +158,11 @@ export default function OrderBoard({
       </main>
 
       {count > 0 && (
-        <div className="print-hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-5 py-4 backdrop-blur">
+        <div className="safe-bottom print-hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-5 pt-4 backdrop-blur">
           <button
             type="button"
             onClick={() => setCartOpen(true)}
-            className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-brand px-5 py-3.5 text-white transition hover:opacity-90"
+            className="mx-auto flex min-h-14 w-full max-w-2xl items-center justify-between rounded-2xl bg-brand px-5 text-white transition hover:opacity-90"
           >
             <span className="font-medium">
               Voir ma commande · {count} article{count > 1 ? "s" : ""}
@@ -173,20 +173,27 @@ export default function OrderBoard({
       )}
 
       {cartOpen && (
-        <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 sm:items-center">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-surface p-5 sm:rounded-3xl">
-            <div className="flex items-center justify-between">
+        <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center">
+          <button
+            type="button"
+            aria-label="Fermer la commande"
+            onClick={() => setCartOpen(false)}
+            className="absolute inset-0 bg-black/40"
+          />
+          <div className="relative flex max-h-[92dvh] w-full max-w-lg flex-col rounded-t-3xl bg-surface sm:rounded-3xl">
+            <div className="flex items-center justify-between border-b border-line px-5 py-4">
               <h2 className="text-lg font-semibold">Votre commande</h2>
               <button
                 type="button"
                 onClick={() => setCartOpen(false)}
-                className="rounded-full border border-line px-3 py-1 text-sm text-muted"
+                className="min-h-11 rounded-full border border-line px-4 text-sm text-muted"
               >
                 Fermer
               </button>
             </div>
 
-            <ul className="mt-4 space-y-3">
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+            <ul className="space-y-3">
               {lines.map((line) => (
                 <li key={line.item.id} className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -238,16 +245,19 @@ export default function OrderBoard({
               />
             </label>
 
-            {sendError && <p className="mt-3 text-sm text-red-600">{sendError}</p>}
+            </div>
 
-            <button
-              type="button"
-              onClick={submitOrder}
-              disabled={sending || lines.length === 0}
-              className="mt-5 w-full rounded-2xl bg-brand px-5 py-3.5 font-medium text-white transition hover:opacity-90 disabled:opacity-50"
-            >
-              {sending ? "Envoi en cours…" : "Envoyer la commande"}
-            </button>
+            <div className="safe-bottom border-t border-line px-5 pt-4">
+              {sendError && <p className="mb-3 text-sm text-red-600">{sendError}</p>}
+              <button
+                type="button"
+                onClick={submitOrder}
+                disabled={sending || lines.length === 0}
+                className="min-h-14 w-full rounded-2xl bg-brand px-5 font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+              >
+                {sending ? "Envoi en cours…" : `Envoyer la commande · ${formatPrice(total)}`}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -263,21 +273,21 @@ function QuantityStepper({
   onChange: (quantity: number) => void;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-3 rounded-full border border-line px-2 py-1">
+    <div className="flex shrink-0 items-center gap-1 rounded-full border border-line p-1">
       <button
         type="button"
         aria-label="Retirer un article"
         onClick={() => onChange(quantity - 1)}
-        className="h-7 w-7 rounded-full text-lg leading-none text-brand"
+        className="h-10 w-10 rounded-full text-xl leading-none text-brand active:bg-brand-soft"
       >
         −
       </button>
-      <span className="w-4 text-center text-sm font-semibold">{quantity}</span>
+      <span className="w-5 text-center font-semibold">{quantity}</span>
       <button
         type="button"
         aria-label="Ajouter un article"
         onClick={() => onChange(quantity + 1)}
-        className="h-7 w-7 rounded-full text-lg leading-none text-brand"
+        className="h-10 w-10 rounded-full text-xl leading-none text-brand active:bg-brand-soft"
       >
         +
       </button>

@@ -54,14 +54,14 @@ export default function TablesManager({
           <button
             type="button"
             onClick={() => run(() => api("/api/admin/tables", { method: "POST" }))}
-            className="self-end rounded-xl border border-line px-4 py-2.5 text-sm"
+            className="min-h-12 self-end rounded-xl border border-line px-4 text-sm"
           >
             Ajouter une table
           </button>
           <button
             type="button"
             onClick={() => window.print()}
-            className="self-end rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+            className="min-h-12 self-end rounded-xl bg-brand px-4 text-sm font-medium text-white transition hover:opacity-90"
           >
             Imprimer les QR codes
           </button>
@@ -96,9 +96,9 @@ export default function TablesManager({
                     required
                     value={editing.name}
                     onChange={(event) => setEditing({ ...editing, name: event.target.value })}
-                    className="w-full rounded-xl border border-line px-3 py-1.5 text-sm"
+                    className="min-w-0 flex-1 rounded-xl border border-line px-3 py-2 text-sm"
                   />
-                  <button type="submit" className="text-sm text-brand">
+                  <button type="submit" className="min-h-11 shrink-0 px-3 text-sm text-brand">
                     OK
                   </button>
                 </form>
@@ -119,14 +119,19 @@ export default function TablesManager({
 
               <p className="mt-3 break-all text-xs text-muted">{target}</p>
 
-              <div className="print-hidden mt-4 flex gap-3 text-sm">
-                <a href={target} target="_blank" rel="noreferrer" className="text-brand">
+              <div className="print-hidden mt-3 flex flex-wrap justify-center gap-1 text-sm">
+                <a
+                  href={target}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex min-h-11 items-center px-3 text-brand"
+                >
                   Tester
                 </a>
                 <button
                   type="button"
                   onClick={() => setEditing({ id: table.id, name: table.name })}
-                  className="text-muted hover:text-brand"
+                  className="min-h-11 px-3 text-muted hover:text-brand"
                 >
                   Renommer
                 </button>
@@ -135,7 +140,7 @@ export default function TablesManager({
                   onClick={() =>
                     run(() => api(`/api/admin/tables/${table.id}`, { method: "DELETE" }))
                   }
-                  className="text-muted hover:text-red-600"
+                  className="min-h-11 px-3 text-muted hover:text-red-600"
                 >
                   Supprimer
                 </button>
