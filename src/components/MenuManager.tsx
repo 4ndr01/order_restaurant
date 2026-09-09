@@ -1,0 +1,303 @@
+"use client";
+
+import { useCallback, useState } from "react";
+import { api } from "@/lib/client";
+import { formatPrice } from "@/lib/format";
+import type { Category, MenuItem } from "@/lib/types";
+
+export type MenuPayload = {
+  restaurantName: string;
+  categories: Category[];
+  items: MenuItem[];
+};
+
+const EMPTY_ITEM = { name: "", description: "", price: "", categoryId: "" };
+
+export default function MenuManager({ initialData }: { initialData: MenuPayload }) {
+  const [data, setData] = useState<MenuPayload>(initialData);
+  const [error, setError] = useState<string | null>(null);
+  const [newCategory, setNewCategory] = useState("");
+  const [newItem, setNewItem] = useState(EMPTY_ITEM);
+  const [editing, setEditing] = useState<MenuItem | null>(null);
+
+  const refresh = useCallback(async () => {
+    const payload = await api<MenuPayload>("/api/admin/menu");
+    setData(payload);
+  }, []);
+
+  async function run(action: () => Promise<unknown>) {
+    setError(null);
+    try {
+      await action();
+      await refresh();
+    } catch (cause) {
+      setError((cause as Error).message);
+    }
+  }
+
+  const targetCategoryId = newItem.categoryId || data.categories[0]?.id || "";
+
+  return (
+    <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-10">
+      <h1 className="text-2xl font-semibold">Carte du restaurant</h1>
+      <p className="mt-1 text-sm text-muted">
+        Les modifications sont visibles immédiatement par les clients.
+      </p>
+
+      {error && (
+        <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
+      )}
+
+      <section className="mt-8 rounded-2xl border border-line bg-surface p-5">
+        <h2 className="font-medium">Nouveau plat</h2>
+        <form
+          className="mt-4 grid gap-3 sm:grid-cols-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            run(async () => {
+              await api("/api/admin/menu", {
+                method: "POST",
+                body: JSON.stringify({
+                  ...newItem,
+                  categoryId: targetCategoryId,
+                  price: Number(newItem.price),
+                }),
+              });
+              setNewItem({ ...EMPTY_ITEM, categoryId: targetCategoryId });
+            });
+          }}
+        >
+          <input
+            required
+            value={newItem.name}
+            onChange={(event) => setNewItem({ ...newItem, name: event.target.value })}
+            placeholder="Nom du plat"
+            className="rounded-xl border border-line px-3 py-2.5"
+          />
+          <input
+            required
+            type="number"
+            min="0"
+            step="0.5"
+            value={newItem.price}
+            onChange={(event) => setNewItem({ ...newItem, price: event.target.value })}
+            placeholder="Prix en €"
+            className="rounded-xl border border-line px-3 py-2.5"
+          />
+          <input
+            value={newItem.description}
+            onChange={(event) => setNewItem({ ...newItem, description: event.target.value })}
+            placeholder="Description"
+            className="rounded-xl border border-line px-3 py-2.5 sm:col-span-2"
+          />
+          <select
+            value={targetCategoryId}
+            onChange={(event) => setNewItem({ ...newItem, categoryId: event.target.value })}
+            className="rounded-xl border border-line px-3 py-2.5"
+          >
+            {data.categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="rounded-xl bg-brand px-5 py-2.5 font-medium text-white transition hover:opacity-90"
+          >
+            Ajouter au menu
+          </button>
+        </form>
+      </section>
+
+      <section className="mt-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-medium">Catégories</h2>
+          <form
+            className="flex gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              run(async () => {
+                await api("/api/admin/categories", {
+                  method: "POST",
+                  body: JSON.stringify({ name: newCategory }),
+                });
+                setNewCategory("");
+              });
+            }}
+          >
+            <input
+              required
+              value={newCategory}
+              onChange={(event) => setNewCategory(event.target.value)}
+              placeholder="Nouvelle catégorie"
+              className="rounded-xl border border-line px-3 py-2"
+            />
+            <button type="submit" className="rounded-xl border border-line px-4 py-2 text-sm">
+              Ajouter
+            </button>
+          </form>
+        </div>
+
+        <div className="mt-6 space-y-8">
+          {data.categories.map((category) => {
+            const items = data.items.filter((item) => item.categoryId === category.id);
+            return (
+              <div key={category.id}>
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold">{category.name}</h3>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      run(() =>
+                        api(`/api/admin/categories/${category.id}`, { method: "DELETE" }),
+                      )
+                    }
+                    className="text-sm text-muted hover:text-red-600"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+
+                <ul className="mt-3 space-y-3">
+                  {items.map((item) =>
+                    editing?.id === item.id ? (
+                      <li key={item.id} className="rounded-2xl border border-brand bg-surface p-4">
+                        <form
+                          className="grid gap-3 sm:grid-cols-2"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            run(async () => {
+                              await api(`/api/admin/menu/${item.id}`, {
+                                method: "PATCH",
+                                body: JSON.stringify({
+                                  name: editing.name,
+                                  description: editing.description,
+                                  price: Number(editing.price),
+                                  categoryId: editing.categoryId,
+                                }),
+                              });
+                              setEditing(null);
+                            });
+                          }}
+                        >
+                          <input
+                            required
+                            value={editing.name}
+                            onChange={(event) =>
+                              setEditing({ ...editing, name: event.target.value })
+                            }
+                            className="rounded-xl border border-line px-3 py-2"
+                          />
+                          <input
+                            required
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            value={editing.price}
+                            onChange={(event) =>
+                              setEditing({ ...editing, price: Number(event.target.value) })
+                            }
+                            className="rounded-xl border border-line px-3 py-2"
+                          />
+                          <input
+                            value={editing.description}
+                            onChange={(event) =>
+                              setEditing({ ...editing, description: event.target.value })
+                            }
+                            className="rounded-xl border border-line px-3 py-2 sm:col-span-2"
+                          />
+                          <select
+                            value={editing.categoryId}
+                            onChange={(event) =>
+                              setEditing({ ...editing, categoryId: event.target.value })
+                            }
+                            className="rounded-xl border border-line px-3 py-2"
+                          >
+                            {data.categories.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.name}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="flex gap-2">
+                            <button
+                              type="submit"
+                              className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-white"
+                            >
+                              Enregistrer
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditing(null)}
+                              className="rounded-xl border border-line px-4 py-2 text-sm"
+                            >
+                              Annuler
+                            </button>
+                          </div>
+                        </form>
+                      </li>
+                    ) : (
+                      <li
+                        key={item.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4"
+                      >
+                        <div className="min-w-0">
+                          <p className={`font-medium ${item.available ? "" : "text-muted"}`}>
+                            {item.name}
+                            {!item.available && " · en rupture"}
+                          </p>
+                          {item.description && (
+                            <p className="text-sm text-muted">{item.description}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-semibold">{formatPrice(item.price)}</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              run(() =>
+                                api(`/api/admin/menu/${item.id}`, {
+                                  method: "PATCH",
+                                  body: JSON.stringify({ available: !item.available }),
+                                }),
+                              )
+                            }
+                            className="rounded-full border border-line px-3 py-1.5 text-sm"
+                          >
+                            {item.available ? "Mettre en rupture" : "Remettre au menu"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditing(item)}
+                            className="text-sm text-brand"
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              run(() => api(`/api/admin/menu/${item.id}`, { method: "DELETE" }))
+                            }
+                            className="text-sm text-muted hover:text-red-600"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      </li>
+                    ),
+                  )}
+                  {items.length === 0 && (
+                    <li className="rounded-2xl border border-dashed border-line p-4 text-sm text-muted">
+                      Aucun plat dans cette catégorie.
+                    </li>
+                  )}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    </main>
+  );
+}
