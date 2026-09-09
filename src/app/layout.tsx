@@ -16,10 +16,15 @@ export const metadata: Metadata = {
   title: "Commande en ligne | Le Comptoir",
   description:
     "Scannez le QR code de votre table, composez votre commande et suivez sa préparation en direct.",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Le Comptoir" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
   themeColor: "#b45309",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -13,6 +13,17 @@ npm run dev
 
 Le site est disponible sur http://localhost:3000.
 
+## Pensé pour le mobile
+
+Le client commande depuis son téléphone, debout ou attablé : toutes les pages sont dessinées d'abord pour un écran de téléphone, et le personnel peut aussi tenir le service depuis un mobile.
+
+- mise en page fluide sans jamais de défilement horizontal, testée de 320 px à l'écran large
+- cibles tactiles d'au moins 44 px (boutons, quantités, navigation)
+- panier en feuille glissante, avec bouton de validation toujours visible en bas
+- respect des encoches et de la barre d'accueil iPhone (`viewport-fit=cover` + `env(safe-area-inset-bottom)`)
+- champs de saisie à 16 px pour éviter le zoom automatique d'iOS
+- navigation de l'espace restaurant en onglets défilants, utilisable au pouce
+
 ## Les trois parcours
 
 ### 1. Le client (public)

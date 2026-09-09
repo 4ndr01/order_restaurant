@@ -71,7 +71,7 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
           <button
             type="button"
             onClick={() => setShowArchive(false)}
-            className={`rounded-full px-4 py-2 text-sm ${
+            className={`min-h-11 rounded-full px-4 text-sm ${
               showArchive ? "border border-line text-muted" : "bg-brand text-white"
             }`}
           >
@@ -80,7 +80,7 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
           <button
             type="button"
             onClick={() => setShowArchive(true)}
-            className={`rounded-full px-4 py-2 text-sm ${
+            className={`min-h-11 rounded-full px-4 text-sm ${
               showArchive ? "bg-brand text-white" : "border border-line text-muted"
             }`}
           >
@@ -137,14 +137,14 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
                   </p>
                 )}
 
-                <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
                   <span className="font-semibold">{formatPrice(order.total)}</span>
-                  <div className="flex gap-2">
+                  <div className="flex flex-1 justify-end gap-2">
                     {OPEN_STATUSES.includes(order.status) && (
                       <button
                         type="button"
                         onClick={() => changeStatus(order.id, "annulee")}
-                        className="rounded-full border border-line px-3 py-1.5 text-sm text-muted hover:text-red-600"
+                        className="min-h-11 rounded-full border border-line px-4 text-sm text-muted hover:text-red-600"
                       >
                         Annuler
                       </button>
@@ -153,7 +153,7 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
                       <button
                         type="button"
                         onClick={() => changeStatus(order.id, next.status)}
-                        className="rounded-full bg-brand px-4 py-1.5 text-sm font-medium text-white transition hover:opacity-90"
+                        className="min-h-11 rounded-full bg-brand px-5 text-sm font-medium text-white transition hover:opacity-90"
                       >
                         {next.label}
                       </button>

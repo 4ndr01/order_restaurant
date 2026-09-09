@@ -103,7 +103,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
           </select>
           <button
             type="submit"
-            className="rounded-xl bg-brand px-5 py-2.5 font-medium text-white transition hover:opacity-90"
+            className="min-h-12 rounded-xl bg-brand px-5 font-medium text-white transition hover:opacity-90"
           >
             Ajouter au menu
           </button>
@@ -114,7 +114,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-medium">Catégories</h2>
           <form
-            className="flex gap-2"
+            className="flex w-full gap-2 sm:w-auto"
             onSubmit={(event) => {
               event.preventDefault();
               run(async () => {
@@ -131,9 +131,9 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
               value={newCategory}
               onChange={(event) => setNewCategory(event.target.value)}
               placeholder="Nouvelle catégorie"
-              className="rounded-xl border border-line px-3 py-2"
+              className="min-w-0 flex-1 rounded-xl border border-line px-3 py-2 sm:flex-none"
             />
-            <button type="submit" className="rounded-xl border border-line px-4 py-2 text-sm">
+            <button type="submit" className="min-h-11 shrink-0 rounded-xl border border-line px-4 text-sm">
               Ajouter
             </button>
           </form>
@@ -153,7 +153,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                         api(`/api/admin/categories/${category.id}`, { method: "DELETE" }),
                       )
                     }
-                    className="text-sm text-muted hover:text-red-600"
+                    className="min-h-11 shrink-0 px-2 text-sm text-muted hover:text-red-600"
                   >
                     Supprimer
                   </button>
@@ -223,14 +223,14 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                           <div className="flex gap-2">
                             <button
                               type="submit"
-                              className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-white"
+                              className="min-h-11 rounded-xl bg-brand px-4 text-sm font-medium text-white"
                             >
                               Enregistrer
                             </button>
                             <button
                               type="button"
                               onClick={() => setEditing(null)}
-                              className="rounded-xl border border-line px-4 py-2 text-sm"
+                              className="min-h-11 rounded-xl border border-line px-4 text-sm"
                             >
                               Annuler
                             </button>
@@ -238,21 +238,21 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                         </form>
                       </li>
                     ) : (
-                      <li
-                        key={item.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4"
-                      >
-                        <div className="min-w-0">
-                          <p className={`font-medium ${item.available ? "" : "text-muted"}`}>
-                            {item.name}
-                            {!item.available && " · en rupture"}
-                          </p>
-                          {item.description && (
-                            <p className="text-sm text-muted">{item.description}</p>
-                          )}
+                      <li key={item.id} className="rounded-2xl border border-line bg-surface p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className={`font-medium ${item.available ? "" : "text-muted"}`}>
+                              {item.name}
+                              {!item.available && " · en rupture"}
+                            </p>
+                            {item.description && (
+                              <p className="mt-0.5 text-sm text-muted">{item.description}</p>
+                            )}
+                          </div>
+                          <span className="shrink-0 font-semibold">{formatPrice(item.price)}</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-semibold">{formatPrice(item.price)}</span>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
                           <button
                             type="button"
                             onClick={() =>
@@ -263,14 +263,14 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                                 }),
                               )
                             }
-                            className="rounded-full border border-line px-3 py-1.5 text-sm"
+                            className="min-h-11 rounded-full border border-line px-4 text-sm"
                           >
                             {item.available ? "Mettre en rupture" : "Remettre au menu"}
                           </button>
                           <button
                             type="button"
                             onClick={() => setEditing(item)}
-                            className="text-sm text-brand"
+                            className="min-h-11 rounded-full px-4 text-sm text-brand"
                           >
                             Modifier
                           </button>
@@ -279,7 +279,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                             onClick={() =>
                               run(() => api(`/api/admin/menu/${item.id}`, { method: "DELETE" }))
                             }
-                            className="text-sm text-muted hover:text-red-600"
+                            className="min-h-11 rounded-full px-4 text-sm text-muted hover:text-red-600 sm:ml-auto"
                           >
                             Supprimer
                           </button>

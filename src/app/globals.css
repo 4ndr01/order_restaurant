@@ -22,9 +22,34 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+label,
+select,
+input,
+textarea {
+  touch-action: manipulation;
+}
+
+/* iOS zoome automatiquement sur un champ dont la police descend sous 16px. */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+.safe-bottom {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 
 .no-scrollbar::-webkit-scrollbar {
