@@ -3,14 +3,24 @@
 // est compatible avec les deux car il repose sur l'API Web Crypto standard.
 import { SignJWT, jwtVerify } from "jose";
 
-const secretValue = process.env.SESSION_SECRET;
-if (!secretValue) {
-  throw new Error(
-    "SESSION_SECRET manquant. Générez une valeur aléatoire (ex: `openssl rand -base64 32`) et " +
-      "ajoutez-la dans .env.local en local, et dans les variables d'environnement du service en production.",
-  );
+// Résolu à la première utilisation, pas au chargement du module : sinon,
+// l'étape "collect page data" de `next build` évalue le module de chaque
+// route dynamique et ferait échouer toute la construction si la variable
+// n'est pas encore définie, alors qu'aucune requête n'a encore eu lieu.
+let cachedSecret: Uint8Array | null = null;
+function getSecret(): Uint8Array {
+  if (!cachedSecret) {
+    const secretValue = process.env.SESSION_SECRET;
+    if (!secretValue) {
+      throw new Error(
+        "SESSION_SECRET manquant. Générez une valeur aléatoire (ex: `openssl rand -base64 32`) et " +
+          "ajoutez-la dans .env.local en local, et dans les variables d'environnement du service en production.",
+      );
+    }
+    cachedSecret = new TextEncoder().encode(secretValue);
+  }
+  return cachedSecret;
 }
-const secret = new TextEncoder().encode(secretValue);
 
 export const SESSION_COOKIE = "session";
 const SESSION_DURATION = "30d";
@@ -27,12 +37,12 @@ export async function signSession(payload: SessionPayload): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(SESSION_DURATION)
-    .sign(secret);
+    .sign(getSecret());
 }
 
 export async function verifySessionToken(token: string): Promise<SessionPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, getSecret());
     if (
       typeof payload.restaurantId === "string" &&
       typeof payload.ownerId === "string" &&
