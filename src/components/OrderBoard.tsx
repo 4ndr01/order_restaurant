@@ -79,22 +79,24 @@ export default function OrderBoard({
 
   return (
     <div className={`flex min-h-full flex-col ${count > 0 ? "pb-32" : "pb-10"}`}>
-      <header className="sticky top-0 z-20 border-b border-line bg-surface/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-5 py-4">
+      <header className="sticky top-0 z-20 bg-background/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-5 pt-5">
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-muted">Commande en ligne</p>
-            <h1 className="text-xl font-semibold">{menu.restaurantName}</h1>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+              Commande en ligne
+            </p>
+            <h1 className="mt-0.5 text-2xl font-extrabold tracking-tight">{menu.restaurantName}</h1>
           </div>
-          <span className="rounded-full bg-brand-soft px-3 py-1.5 text-sm font-medium text-brand">
+          <span className="card-float-sm shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white">
             {tableLabel}
           </span>
         </div>
-        <nav className="no-scrollbar mx-auto flex w-full max-w-2xl gap-2 overflow-x-auto px-5 pb-3">
+        <nav className="no-scrollbar mx-auto flex w-full max-w-2xl gap-2 overflow-x-auto px-5 py-4">
           {categories.map((category) => (
             <a
               key={category.id}
               href={`#cat-${category.id}`}
-              className="flex min-h-11 shrink-0 items-center rounded-full border border-line px-4 text-sm text-muted transition hover:border-brand hover:text-brand"
+              className="flex min-h-11 shrink-0 items-center rounded-full bg-surface px-4 text-sm font-medium text-foreground/80 transition hover:bg-brand-soft hover:text-brand"
             >
               {category.name}
             </a>
@@ -111,7 +113,7 @@ export default function OrderBoard({
 
         {categories.map((category) => (
           <section key={category.id} id={`cat-${category.id}`} className="scroll-mt-36 pt-8">
-            <h2 className="text-lg font-semibold">{category.name}</h2>
+            <h2 className="text-lg font-extrabold tracking-tight">{category.name}</h2>
             <ul className="mt-3 space-y-3">
               {menu.items
                 .filter((item) => item.categoryId === category.id)
@@ -120,14 +122,14 @@ export default function OrderBoard({
                   return (
                     <li
                       key={item.id}
-                      className="flex items-start justify-between gap-4 rounded-2xl border border-line bg-surface p-4 shadow-sm"
+                      className="card-float-sm flex items-start justify-between gap-4 rounded-3xl bg-surface p-4"
                     >
                       <div className="min-w-0">
-                        <p className="font-medium">{item.name}</p>
+                        <p className="font-semibold">{item.name}</p>
                         {item.description && (
                           <p className="mt-1 text-sm text-muted">{item.description}</p>
                         )}
-                        <p className="mt-2 text-sm font-semibold text-brand">
+                        <p className="mt-2 inline-flex rounded-full bg-brand-soft px-2.5 py-1 text-sm font-semibold text-brand">
                           {formatPrice(item.price)}
                         </p>
                       </div>
@@ -135,7 +137,7 @@ export default function OrderBoard({
                         <button
                           type="button"
                           onClick={() => setQuantity(item.id, 1)}
-                          className="min-h-11 shrink-0 rounded-full bg-brand px-5 text-sm font-medium text-white transition hover:opacity-90"
+                          className="card-float-sm min-h-11 shrink-0 rounded-full bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-strong"
                         >
                           Ajouter
                         </button>
@@ -158,11 +160,11 @@ export default function OrderBoard({
       </main>
 
       {count > 0 && (
-        <div className="safe-bottom print-hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-5 pt-4 backdrop-blur">
+        <div className="safe-bottom print-hidden fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-background via-background/95 px-5 pt-6 backdrop-blur">
           <button
             type="button"
             onClick={() => setCartOpen(true)}
-            className="mx-auto flex min-h-14 w-full max-w-2xl items-center justify-between rounded-2xl bg-brand px-5 text-white transition hover:opacity-90"
+            className="card-float mx-auto flex min-h-14 w-full max-w-2xl items-center justify-between rounded-full bg-brand px-6 text-white transition hover:bg-brand-strong"
           >
             <span className="font-medium">
               Voir ma commande · {count} article{count > 1 ? "s" : ""}
@@ -180,13 +182,13 @@ export default function OrderBoard({
             onClick={() => setCartOpen(false)}
             className="absolute inset-0 bg-black/40"
           />
-          <div className="relative flex max-h-[92dvh] w-full max-w-lg flex-col rounded-t-3xl bg-surface sm:rounded-3xl">
-            <div className="flex items-center justify-between border-b border-line px-5 py-4">
-              <h2 className="text-lg font-semibold">Votre commande</h2>
+          <div className="relative flex max-h-[92dvh] w-full max-w-lg flex-col rounded-t-3xl bg-surface shadow-2xl sm:rounded-3xl">
+            <div className="flex items-center justify-between px-5 py-4">
+              <h2 className="text-lg font-extrabold tracking-tight">Votre commande</h2>
               <button
                 type="button"
                 onClick={() => setCartOpen(false)}
-                className="min-h-11 rounded-full border border-line px-4 text-sm text-muted"
+                className="min-h-11 rounded-full bg-brand-soft px-4 text-sm font-medium text-brand"
               >
                 Fermer
               </button>
@@ -210,18 +212,18 @@ export default function OrderBoard({
               ))}
             </ul>
 
-            <div className="mt-5 flex items-center justify-between border-t border-line pt-4 text-lg font-semibold">
+            <div className="mt-5 flex items-center justify-between rounded-2xl bg-brand-soft px-4 py-3.5 text-lg font-extrabold text-brand">
               <span>Total</span>
               <span>{formatPrice(total)}</span>
             </div>
 
             {(!knownTable || tableUnknown) && (
               <label className="mt-4 block text-sm">
-                <span className="text-muted">Votre table</span>
+                <span className="font-medium text-muted">Votre table</span>
                 <select
                   value={selectedTable ?? ""}
                   onChange={(event) => setSelectedTable(event.target.value || null)}
-                  className="mt-1 w-full rounded-xl border border-line bg-surface px-3 py-2.5"
+                  className="mt-1.5 w-full rounded-2xl bg-brand-soft px-3.5 py-2.5"
                 >
                   <option value="">À emporter / au comptoir</option>
                   {menu.tables.map((table) => (
@@ -234,26 +236,28 @@ export default function OrderBoard({
             )}
 
             <label className="mt-4 block text-sm">
-              <span className="text-muted">Précisions pour la cuisine (allergies, cuisson…)</span>
+              <span className="font-medium text-muted">
+                Précisions pour la cuisine (allergies, cuisson…)
+              </span>
               <textarea
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
                 rows={3}
                 maxLength={300}
-                className="mt-1 w-full rounded-xl border border-line bg-surface px-3 py-2.5"
+                className="mt-1.5 w-full rounded-2xl bg-brand-soft px-3.5 py-2.5"
                 placeholder="Sans oignons, steak à point…"
               />
             </label>
 
             </div>
 
-            <div className="safe-bottom border-t border-line px-5 pt-4">
+            <div className="safe-bottom px-5 pt-4">
               {sendError && <p className="mb-3 text-sm text-red-600">{sendError}</p>}
               <button
                 type="button"
                 onClick={submitOrder}
                 disabled={sending || lines.length === 0}
-                className="min-h-14 w-full rounded-2xl bg-brand px-5 font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+                className="card-float min-h-14 w-full rounded-full bg-brand px-5 font-semibold text-white transition hover:bg-brand-strong disabled:opacity-50"
               >
                 {sending ? "Envoi en cours…" : `Envoyer la commande · ${formatPrice(total)}`}
               </button>
@@ -273,21 +277,21 @@ function QuantityStepper({
   onChange: (quantity: number) => void;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-1 rounded-full border border-line p-1">
+    <div className="flex shrink-0 items-center gap-1 rounded-full bg-brand-soft p-1">
       <button
         type="button"
         aria-label="Retirer un article"
         onClick={() => onChange(quantity - 1)}
-        className="h-10 w-10 rounded-full text-xl leading-none text-brand active:bg-brand-soft"
+        className="h-10 w-10 rounded-full text-xl leading-none text-brand active:bg-white"
       >
         −
       </button>
-      <span className="w-5 text-center font-semibold">{quantity}</span>
+      <span className="w-5 text-center font-bold text-brand">{quantity}</span>
       <button
         type="button"
         aria-label="Ajouter un article"
         onClick={() => onChange(quantity + 1)}
-        className="h-10 w-10 rounded-full text-xl leading-none text-brand active:bg-brand-soft"
+        className="h-10 w-10 rounded-full text-xl leading-none text-brand active:bg-white"
       >
         +
       </button>
