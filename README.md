@@ -2,16 +2,17 @@
 
 Site de commande de plats pour un restaurant, pensé pour être ouvert en scannant un **QR code posé sur la table**. Le client scanne, commande depuis son téléphone, et suit la préparation en direct. La cuisine voit arriver les commandes sur un écran dédié.
 
-Construit avec **Next.js 16** (App Router), TypeScript et Tailwind CSS. Les données sont stockées dans un simple fichier JSON : aucune base de données à installer.
+Construit avec **Next.js 16** (App Router), TypeScript et Tailwind CSS. Les données (menu, tables, commandes) sont stockées dans Postgres.
 
 ## Démarrage
 
 ```bash
 npm install
+cp .env.example .env.local   # puis renseignez DATABASE_URL
 npm run dev
 ```
 
-Le site est disponible sur http://localhost:3000.
+Le site est disponible sur http://localhost:3000. Sans `DATABASE_URL`, le serveur refuse de démarrer avec un message explicite — voir [Données](#données) pour obtenir une base gratuite en quelques minutes.
 
 ## Pensé pour le mobile
 
@@ -67,9 +68,15 @@ NEXT_PUBLIC_BASE_URL=https://resto-le-comptoir.fr
 
 ## Données
 
-Tout est stocké dans `data/db.json`, créé automatiquement au premier lancement à partir de `src/lib/seed.ts` (menu d'exemple + 6 tables). Le dossier `data/` est ignoré par git. `DATA_DIR` permet de le déplacer.
+Toutes les données (menu, catégories, tables, commandes) vivent dans une seule table Postgres (`restaurant_state`, une ligne au format JSON), créée automatiquement et pré-remplie avec le menu d'exemple de `src/lib/seed.ts` au premier démarrage. Suffisant pour un seul établissement — pas besoin d'un schéma relationnel complexe à cette échelle.
 
-Ce stockage fichier convient à un restaurant unique sur un hébergement avec disque persistant (VPS, Render, Railway, Fly.io). Sur une plateforme sans disque persistant (fonctions serverless), remplacez `src/lib/db.ts` par une vraie base de données : c'est le seul fichier à réécrire, tout le reste passe par lui.
+**Obtenir une base gratuite (recommandé : [Neon](https://neon.tech))** :
+1. Créez un compte (connexion GitHub possible) et un projet.
+2. Copiez la chaîne de connexion fournie dans `DATABASE_URL` (`.env.local` en local, variable d'environnement du service en production — sur Render : *Settings → Environment*).
+
+Toute base Postgres standard fonctionne (Render Postgres, Supabase, un VPS avec Postgres installé...). Les écritures passent par une transaction avec verrou de ligne (`SELECT ... FOR UPDATE`), donc deux commandes envoyées au même instant ne s'écrasent jamais, même avec plusieurs instances du serveur.
+
+Contrairement à un fichier local, les données **survivent aux redéploiements** — c'était le principal défaut du stockage précédent.
 
 ## Structure
 
@@ -84,7 +91,7 @@ src/
       orders/          commandes (public : passer, suivre)
       admin/           menu, catégories, tables, QR, statuts (protégé)
   components/          OrderBoard, OrderTracker, KitchenBoard, MenuManager, TablesManager
-  lib/                 db.ts (stockage JSON), menu.ts, base-url.ts, types.ts, seed.ts
+  lib/                 db.ts (stockage Postgres), menu.ts, base-url.ts, types.ts, seed.ts
   proxy.ts             authentification de l'espace restaurant
 ```
 
