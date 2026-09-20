@@ -1,9 +1,12 @@
-import { updateDb } from "@/lib/db";
-import type { Table } from "@/lib/types";
+import { requireSession } from "@/lib/auth";
+import { deleteTable, updateTable } from "@/lib/repo";
 
 export const dynamic = "force-dynamic";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireSession();
+  if ("response" in auth) return auth.response;
+
   const { id } = await params;
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
@@ -11,15 +14,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return Response.json({ error: "Le nom est obligatoire." }, { status: 400 });
   }
 
-  const result = await updateDb<Table | null>((db) => {
-    const table = db.tables.find((entry) => entry.id === id);
-    if (!table) {
-      return null;
-    }
-    table.name = name.slice(0, 40);
-    return table;
-  });
-
+  const result = await updateTable(auth.session.restaurantId, id, name);
   if (!result) {
     return Response.json({ error: "Table introuvable." }, { status: 404 });
   }
@@ -27,16 +22,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const removed = await updateDb((db) => {
-    const index = db.tables.findIndex((entry) => entry.id === id);
-    if (index === -1) {
-      return false;
-    }
-    db.tables.splice(index, 1);
-    return true;
-  });
+  const auth = await requireSession();
+  if ("response" in auth) return auth.response;
 
+  const { id } = await params;
+  const removed = await deleteTable(auth.session.restaurantId, id);
   if (!removed) {
     return Response.json({ error: "Table introuvable." }, { status: 404 });
   }

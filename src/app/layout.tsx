@@ -8,10 +8,10 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Commande en ligne | Le Comptoir",
+  title: "Commande en ligne pour restaurants",
   description:
-    "Scannez le QR code de votre table, composez votre commande et suivez sa préparation en direct.",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "Le Comptoir" },
+    "Vos clients scannent le QR code de leur table, commandent et suivent la préparation en direct.",
+  appleWebApp: { capable: true, statusBarStyle: "default" },
   formatDetection: { telephone: false },
 };
 
