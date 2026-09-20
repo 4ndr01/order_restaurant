@@ -15,7 +15,7 @@ const OPEN_STATUSES: OrderStatus[] = ["recue", "en_preparation", "prete"];
 
 const BADGE_STYLES: Record<OrderStatus, string> = {
   recue: "bg-amber-100 text-amber-800",
-  en_preparation: "bg-blue-100 text-blue-800",
+  en_preparation: "bg-sky-100 text-sky-800",
   prete: "bg-emerald-100 text-emerald-800",
   servie: "bg-stone-100 text-stone-600",
   annulee: "bg-red-100 text-red-700",
@@ -64,15 +64,15 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
     <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Écran cuisine</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight">Écran cuisine</h1>
           <p className="mt-1 text-sm text-muted">Actualisation automatique toutes les 5 secondes.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 rounded-full bg-surface p-1">
           <button
             type="button"
             onClick={() => setShowArchive(false)}
-            className={`min-h-11 rounded-full px-4 text-sm ${
-              showArchive ? "border border-line text-muted" : "bg-brand text-white"
+            className={`min-h-10 rounded-full px-4 text-sm font-semibold transition ${
+              showArchive ? "text-muted" : "bg-brand text-white"
             }`}
           >
             En cours
@@ -80,8 +80,8 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
           <button
             type="button"
             onClick={() => setShowArchive(true)}
-            className={`min-h-11 rounded-full px-4 text-sm ${
-              showArchive ? "bg-brand text-white" : "border border-line text-muted"
+            className={`min-h-10 rounded-full px-4 text-sm font-semibold transition ${
+              showArchive ? "bg-brand text-white" : "text-muted"
             }`}
           >
             Terminées
@@ -100,10 +100,10 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
           {visible.map((order) => {
             const next = NEXT_STATUS[order.status];
             return (
-              <li key={order.id} className="rounded-2xl border border-line bg-surface p-5">
+              <li key={order.id} className="card-float-sm rounded-3xl bg-surface p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-lg font-semibold">
+                    <p className="text-lg font-bold">
                       {order.tableName} · n° {order.reference}
                     </p>
                     <p className="text-sm text-muted">
@@ -111,7 +111,7 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
                     </p>
                   </div>
                   <span
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${BADGE_STYLES[order.status]}`}
+                    className={`rounded-full px-3 py-1 text-xs font-bold ${BADGE_STYLES[order.status]}`}
                   >
                     {STATUS_LABELS[order.status]}
                   </span>
@@ -132,19 +132,19 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
                 </ul>
 
                 {order.note && (
-                  <p className="mt-3 rounded-xl bg-brand-soft px-3 py-2 text-sm text-brand">
+                  <p className="mt-3 rounded-2xl bg-brand-soft px-3.5 py-2.5 text-sm text-brand">
                     {order.note}
                   </p>
                 )}
 
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-                  <span className="font-semibold">{formatPrice(order.total)}</span>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <span className="font-bold">{formatPrice(order.total)}</span>
                   <div className="flex flex-1 justify-end gap-2">
                     {OPEN_STATUSES.includes(order.status) && (
                       <button
                         type="button"
                         onClick={() => changeStatus(order.id, "annulee")}
-                        className="min-h-11 rounded-full border border-line px-4 text-sm text-muted hover:text-red-600"
+                        className="min-h-11 rounded-full px-4 text-sm font-medium text-muted hover:bg-red-50 hover:text-red-600"
                       >
                         Annuler
                       </button>
@@ -153,7 +153,7 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
                       <button
                         type="button"
                         onClick={() => changeStatus(order.id, next.status)}
-                        className="min-h-11 rounded-full bg-brand px-5 text-sm font-medium text-white transition hover:opacity-90"
+                        className="min-h-11 rounded-full bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-strong"
                       >
                         {next.label}
                       </button>

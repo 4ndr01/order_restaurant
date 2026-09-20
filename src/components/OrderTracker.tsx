@@ -65,37 +65,35 @@ export default function OrderTracker({ orderId }: { orderId: string }) {
 
   return (
     <main className="mx-auto w-full max-w-lg px-5 py-10">
-      <p className="text-xs uppercase tracking-[0.18em] text-muted">
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand">
         Commande n° {order.reference} · {formatTime(order.createdAt)}
       </p>
-      <h1 className="mt-2 text-3xl font-semibold">{STATUS_LABELS[order.status]}</h1>
+      <h1 className="mt-2 text-3xl font-extrabold tracking-tight">{STATUS_LABELS[order.status]}</h1>
       <p className="mt-2 text-muted">{STATUS_HINTS[order.status]}</p>
 
       {order.status !== "annulee" && (
-        <ol className="mt-8 space-y-3">
+        <ol className="card-float-sm mt-8 space-y-3 rounded-3xl bg-surface p-5">
           {TIMELINE.map((step, index) => {
             const done = index <= currentStep;
             return (
               <li key={step} className="flex items-center gap-3">
                 <span
-                  className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${
-                    done
-                      ? "border-brand bg-brand text-white"
-                      : "border-line bg-surface text-muted"
+                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                    done ? "bg-brand text-white" : "bg-brand-soft text-muted"
                   }`}
                 >
                   {index + 1}
                 </span>
-                <span className={done ? "font-medium" : "text-muted"}>{STATUS_LABELS[step]}</span>
+                <span className={done ? "font-semibold" : "text-muted"}>{STATUS_LABELS[step]}</span>
               </li>
             );
           })}
         </ol>
       )}
 
-      <section className="mt-8 rounded-2xl border border-line bg-surface p-5">
+      <section className="card-float-sm mt-8 rounded-3xl bg-surface p-5">
         <div className="flex items-center justify-between text-sm text-muted">
-          <span>{order.tableName}</span>
+          <span className="font-semibold text-foreground">{order.tableName}</span>
           <span>Mise à jour {formatTime(order.updatedAt)}</span>
         </div>
         <ul className="mt-4 space-y-2">
@@ -109,9 +107,11 @@ export default function OrderTracker({ orderId }: { orderId: string }) {
           ))}
         </ul>
         {order.note && (
-          <p className="mt-4 rounded-xl bg-brand-soft px-3 py-2 text-sm text-brand">{order.note}</p>
+          <p className="mt-4 rounded-2xl bg-brand-soft px-3.5 py-2.5 text-sm text-brand">
+            {order.note}
+          </p>
         )}
-        <div className="mt-4 flex justify-between border-t border-line pt-4 font-semibold">
+        <div className="mt-4 flex justify-between rounded-2xl bg-brand-soft px-3.5 py-3 font-bold text-brand">
           <span>Total</span>
           <span>{formatPrice(order.total)}</span>
         </div>
@@ -119,7 +119,7 @@ export default function OrderTracker({ orderId }: { orderId: string }) {
 
       <Link
         href={order.tableId ? `/table/${order.tableId}` : "/menu"}
-        className="mt-6 inline-block rounded-2xl border border-line px-5 py-3 font-medium transition hover:border-brand hover:text-brand"
+        className="mt-6 inline-block rounded-full bg-surface px-5 py-3 font-semibold transition hover:bg-brand-soft hover:text-brand"
       >
         Commander autre chose
       </Link>

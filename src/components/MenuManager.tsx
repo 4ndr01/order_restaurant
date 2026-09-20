@@ -39,7 +39,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-10">
-      <h1 className="text-2xl font-semibold">Carte du restaurant</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight">Carte du restaurant</h1>
       <p className="mt-1 text-sm text-muted">
         Les modifications sont visibles immédiatement par les clients.
       </p>
@@ -48,8 +48,8 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
         <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
       )}
 
-      <section className="mt-8 rounded-2xl border border-line bg-surface p-5">
-        <h2 className="font-medium">Nouveau plat</h2>
+      <section className="card-float mt-8 rounded-3xl bg-surface p-5">
+        <h2 className="font-bold">Nouveau plat</h2>
         <form
           className="mt-4 grid gap-3 sm:grid-cols-2"
           onSubmit={(event) => {
@@ -72,7 +72,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
             value={newItem.name}
             onChange={(event) => setNewItem({ ...newItem, name: event.target.value })}
             placeholder="Nom du plat"
-            className="rounded-xl border border-line px-3 py-2.5"
+            className="rounded-2xl bg-brand-soft px-3.5 py-2.5"
           />
           <input
             required
@@ -82,18 +82,18 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
             value={newItem.price}
             onChange={(event) => setNewItem({ ...newItem, price: event.target.value })}
             placeholder="Prix en €"
-            className="rounded-xl border border-line px-3 py-2.5"
+            className="rounded-2xl bg-brand-soft px-3.5 py-2.5"
           />
           <input
             value={newItem.description}
             onChange={(event) => setNewItem({ ...newItem, description: event.target.value })}
             placeholder="Description"
-            className="rounded-xl border border-line px-3 py-2.5 sm:col-span-2"
+            className="rounded-2xl bg-brand-soft px-3.5 py-2.5 sm:col-span-2"
           />
           <select
             value={targetCategoryId}
             onChange={(event) => setNewItem({ ...newItem, categoryId: event.target.value })}
-            className="rounded-xl border border-line px-3 py-2.5"
+            className="rounded-2xl bg-brand-soft px-3.5 py-2.5"
           >
             {data.categories.map((category) => (
               <option key={category.id} value={category.id}>
@@ -103,7 +103,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
           </select>
           <button
             type="submit"
-            className="min-h-12 rounded-xl bg-brand px-5 font-medium text-white transition hover:opacity-90"
+            className="card-float-sm min-h-12 rounded-full bg-brand px-5 font-semibold text-white transition hover:bg-brand-strong"
           >
             Ajouter au menu
           </button>
@@ -112,7 +112,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
 
       <section className="mt-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-medium">Catégories</h2>
+          <h2 className="font-bold">Catégories</h2>
           <form
             className="flex w-full gap-2 sm:w-auto"
             onSubmit={(event) => {
@@ -131,9 +131,9 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
               value={newCategory}
               onChange={(event) => setNewCategory(event.target.value)}
               placeholder="Nouvelle catégorie"
-              className="min-w-0 flex-1 rounded-xl border border-line px-3 py-2 sm:flex-none"
+              className="min-w-0 flex-1 rounded-2xl bg-brand-soft px-3.5 py-2 sm:flex-none"
             />
-            <button type="submit" className="min-h-11 shrink-0 rounded-xl border border-line px-4 text-sm">
+            <button type="submit" className="min-h-11 shrink-0 rounded-2xl bg-brand-soft px-4 text-sm font-semibold text-brand">
               Ajouter
             </button>
           </form>
@@ -145,7 +145,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
             return (
               <div key={category.id}>
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-lg font-semibold">{category.name}</h3>
+                  <h3 className="text-lg font-extrabold tracking-tight">{category.name}</h3>
                   <button
                     type="button"
                     onClick={() =>
@@ -153,7 +153,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                         api(`/api/admin/categories/${category.id}`, { method: "DELETE" }),
                       )
                     }
-                    className="min-h-11 shrink-0 px-2 text-sm text-muted hover:text-red-600"
+                    className="min-h-11 shrink-0 rounded-full px-3 text-sm font-medium text-muted hover:bg-red-50 hover:text-red-600"
                   >
                     Supprimer
                   </button>
@@ -162,7 +162,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                 <ul className="mt-3 space-y-3">
                   {items.map((item) =>
                     editing?.id === item.id ? (
-                      <li key={item.id} className="rounded-2xl border border-brand bg-surface p-4">
+                      <li key={item.id} className="card-float rounded-3xl bg-brand-soft p-4">
                         <form
                           className="grid gap-3 sm:grid-cols-2"
                           onSubmit={(event) => {
@@ -187,7 +187,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                             onChange={(event) =>
                               setEditing({ ...editing, name: event.target.value })
                             }
-                            className="rounded-xl border border-line px-3 py-2"
+                            className="rounded-2xl bg-brand-soft px-3.5 py-2"
                           />
                           <input
                             required
@@ -198,21 +198,21 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                             onChange={(event) =>
                               setEditing({ ...editing, price: Number(event.target.value) })
                             }
-                            className="rounded-xl border border-line px-3 py-2"
+                            className="rounded-2xl bg-brand-soft px-3.5 py-2"
                           />
                           <input
                             value={editing.description}
                             onChange={(event) =>
                               setEditing({ ...editing, description: event.target.value })
                             }
-                            className="rounded-xl border border-line px-3 py-2 sm:col-span-2"
+                            className="rounded-2xl bg-brand-soft px-3.5 py-2 sm:col-span-2"
                           />
                           <select
                             value={editing.categoryId}
                             onChange={(event) =>
                               setEditing({ ...editing, categoryId: event.target.value })
                             }
-                            className="rounded-xl border border-line px-3 py-2"
+                            className="rounded-2xl bg-brand-soft px-3.5 py-2"
                           >
                             {data.categories.map((option) => (
                               <option key={option.id} value={option.id}>
@@ -223,14 +223,14 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                           <div className="flex gap-2">
                             <button
                               type="submit"
-                              className="min-h-11 rounded-xl bg-brand px-4 text-sm font-medium text-white"
+                              className="min-h-11 rounded-2xl bg-brand px-4 text-sm font-semibold text-white"
                             >
                               Enregistrer
                             </button>
                             <button
                               type="button"
                               onClick={() => setEditing(null)}
-                              className="min-h-11 rounded-xl border border-line px-4 text-sm"
+                              className="min-h-11 rounded-2xl bg-surface px-4 text-sm font-medium"
                             >
                               Annuler
                             </button>
@@ -238,10 +238,10 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                         </form>
                       </li>
                     ) : (
-                      <li key={item.id} className="rounded-2xl border border-line bg-surface p-4">
+                      <li key={item.id} className="card-float-sm rounded-3xl bg-surface p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className={`font-medium ${item.available ? "" : "text-muted"}`}>
+                            <p className={`font-semibold ${item.available ? "" : "text-muted"}`}>
                               {item.name}
                               {!item.available && " · en rupture"}
                             </p>
@@ -252,7 +252,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                           <span className="shrink-0 font-semibold">{formatPrice(item.price)}</span>
                         </div>
 
-                        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+                        <div className="mt-3 flex flex-wrap items-center gap-2 pt-1">
                           <button
                             type="button"
                             onClick={() =>
@@ -263,14 +263,14 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                                 }),
                               )
                             }
-                            className="min-h-11 rounded-full border border-line px-4 text-sm"
+                            className="card-float-sm min-h-11 rounded-full bg-surface px-4 text-sm font-medium"
                           >
                             {item.available ? "Mettre en rupture" : "Remettre au menu"}
                           </button>
                           <button
                             type="button"
                             onClick={() => setEditing(item)}
-                            className="min-h-11 rounded-full px-4 text-sm text-brand"
+                            className="min-h-11 rounded-full px-4 text-sm font-semibold text-brand hover:bg-brand-soft"
                           >
                             Modifier
                           </button>
@@ -279,7 +279,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                             onClick={() =>
                               run(() => api(`/api/admin/menu/${item.id}`, { method: "DELETE" }))
                             }
-                            className="min-h-11 rounded-full px-4 text-sm text-muted hover:text-red-600 sm:ml-auto"
+                            className="min-h-11 rounded-full px-4 text-sm font-medium text-muted hover:bg-red-50 hover:text-red-600 sm:ml-auto"
                           >
                             Supprimer
                           </button>
@@ -288,7 +288,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                     ),
                   )}
                   {items.length === 0 && (
-                    <li className="rounded-2xl border border-dashed border-line p-4 text-sm text-muted">
+                    <li className="rounded-3xl border-2 border-dashed border-line/70 p-4 text-sm text-muted">
                       Aucun plat dans cette catégorie.
                     </li>
                   )}

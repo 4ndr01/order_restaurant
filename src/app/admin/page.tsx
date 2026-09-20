@@ -24,14 +24,14 @@ export default async function AdminHomePage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-10">
-      <h1 className="text-2xl font-semibold">{db.restaurantName}</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight">{db.restaurantName}</h1>
       <p className="mt-1 text-muted">Vue d&apos;ensemble du service.</p>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-2xl border border-line bg-surface p-4">
+          <div key={stat.label} className="card-float-sm rounded-3xl bg-surface p-4">
             <p className="text-sm text-muted">{stat.label}</p>
-            <p className="mt-2 text-2xl font-semibold">{stat.value}</p>
+            <p className="mt-2 text-2xl font-extrabold text-brand">{stat.value}</p>
           </div>
         ))}
       </div>
@@ -57,9 +57,9 @@ export default async function AdminHomePage() {
           <Link
             key={card.href}
             href={card.href}
-            className="rounded-2xl border border-line bg-surface p-5 transition hover:border-brand"
+            className="card-float-sm rounded-3xl bg-surface p-5 transition hover:-translate-y-0.5"
           >
-            <p className="font-medium">{card.title}</p>
+            <p className="font-semibold">{card.title}</p>
             <p className="mt-1 text-sm text-muted">{card.text}</p>
           </Link>
         ))}
