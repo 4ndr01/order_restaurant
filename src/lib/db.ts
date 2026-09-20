@@ -1,18 +1,38 @@
 import "server-only";
 import postgres from "postgres";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error(
-    "DATABASE_URL manquant. Ajoutez la chaîne de connexion Postgres (Neon) dans .env.local en local, " +
-      "et dans les variables d'environnement du service sur Render en production.",
-  );
+// Résolu à la première requête, pas au chargement du module : sinon,
+// l'étape "collect page data" de `next build` évalue le module de chaque
+// route dynamique et ferait échouer toute la construction si la variable
+// n'est pas encore définie, alors qu'aucune requête n'a encore eu lieu.
+let client: postgres.Sql | null = null;
+function getClient(): postgres.Sql {
+  if (!client) {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      throw new Error(
+        "DATABASE_URL manquant. Ajoutez la chaîne de connexion Postgres (Neon) dans .env.local en local, " +
+          "et dans les variables d'environnement du service sur Render en production.",
+      );
+    }
+    // "prefer" utilise le chiffrement quand le serveur le propose (Neon
+    // l'impose de toute façon) et retombe sur une connexion en clair pour un
+    // Postgres local sans TLS configuré (développement).
+    client = postgres(connectionString, { ssl: "prefer", max: 5 });
+  }
+  return client;
 }
 
-// "prefer" utilise le chiffrement quand le serveur le propose (Neon l'impose
-// de toute façon) et retombe sur une connexion en clair pour un Postgres
-// local sans TLS configuré (développement).
-export const sql = postgres(connectionString, { ssl: "prefer", max: 5 });
+export const sql: postgres.Sql = new Proxy(function sql() {} as unknown as postgres.Sql, {
+  apply(_target, _thisArg, args: unknown[]) {
+    const fn = getClient() as unknown as (...a: unknown[]) => unknown;
+    return fn(...args);
+  },
+  get(_target, prop, receiver) {
+    const value = Reflect.get(getClient() as object, prop, receiver);
+    return typeof value === "function" ? value.bind(getClient()) : value;
+  },
+});
 
 let ready: Promise<void> | null = null;
 export function ensureSchema(): Promise<void> {
