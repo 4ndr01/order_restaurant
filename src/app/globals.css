@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f5fd;
+  --surface: #ffffff;
+  --foreground: #201a2c;
+  --muted: #6f6a80;
+  --border: #ece7fa;
+  --brand: #6d28d9;
+  --brand-strong: #5b1fb8;
+  --brand-soft: #f1ebfe;
+  --accent: #16a34a;
+  --shadow-color: 261deg 45% 55%;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--border);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-jakarta);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+label,
+select,
+input,
+textarea {
+  touch-action: manipulation;
+}
+
+/* iOS zoome automatiquement sur un champ dont la police descend sous 16px. */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+.safe-bottom {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Ombre douce et colorée façon carte "flottante", plutôt qu'une bordure plate. */
+.card-float {
+  box-shadow:
+    0 1px 2px hsl(var(--shadow-color) / 0.06),
+    0 12px 28px -8px hsl(var(--shadow-color) / 0.16);
+}
+
+.card-float-sm {
+  box-shadow:
+    0 1px 2px hsl(var(--shadow-color) / 0.05),
+    0 6px 16px -6px hsl(var(--shadow-color) / 0.14);
+}
+
+@media print {
+  .print-hidden {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  .print-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 1.5rem !important;
+  }
+
+  .print-card {
+    break-inside: avoid;
+    border-color: #d6d3d1 !important;
+    box-shadow: none !important;
+  }
+}
