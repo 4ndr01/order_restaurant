@@ -1,18 +1,23 @@
-import { createId, readDb, updateDb } from "@/lib/db";
-import type { MenuItem } from "@/lib/types";
+import { requireSession } from "@/lib/auth";
+import { createMenuItem, listCategories, listMenuItems } from "@/lib/repo";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const db = await readDb();
-  return Response.json({
-    restaurantName: db.restaurantName,
-    categories: [...db.categories].sort((a, b) => a.position - b.position),
-    items: db.menu,
-  });
+  const auth = await requireSession();
+  if ("response" in auth) return auth.response;
+
+  const [categories, items] = await Promise.all([
+    listCategories(auth.session.restaurantId),
+    listMenuItems(auth.session.restaurantId),
+  ]);
+  return Response.json({ categories, items });
 }
 
 export async function POST(request: Request) {
+  const auth = await requireSession();
+  if ("response" in auth) return auth.response;
+
   const body = await request.json().catch(() => null);
   if (!body) {
     return Response.json({ error: "Requête invalide." }, { status: 400 });
@@ -29,21 +34,12 @@ export async function POST(request: Request) {
     return Response.json({ error: "Prix invalide." }, { status: 400 });
   }
 
-  const result = await updateDb<MenuItem | { error: string }>((db) => {
-    if (!db.categories.some((category) => category.id === categoryId)) {
-      return { error: "Catégorie inconnue." };
-    }
-    const item: MenuItem = {
-      id: createId(),
-      categoryId,
-      name: name.slice(0, 80),
-      description:
-        typeof body.description === "string" ? body.description.trim().slice(0, 200) : "",
-      price: Math.round(price * 100) / 100,
-      available: body.available !== false,
-    };
-    db.menu.push(item);
-    return item;
+  const result = await createMenuItem(auth.session.restaurantId, {
+    categoryId,
+    name,
+    description: typeof body.description === "string" ? body.description : "",
+    price,
+    available: body.available !== false,
   });
 
   if ("error" in result) {

@@ -4,15 +4,24 @@ import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
 import { formatPrice } from "@/lib/format";
-import type { PublicMenu } from "@/lib/menu";
-import type { MenuItem, Order } from "@/lib/types";
+import type { Category, MenuItem, Order, RestaurantTable } from "@/lib/types";
 
 type Cart = Record<string, number>;
 
+export type PublicMenu = {
+  categories: Category[];
+  items: MenuItem[];
+  tables: RestaurantTable[];
+};
+
 export default function OrderBoard({
+  restaurantSlug,
+  restaurantName,
   tableId,
   menu,
 }: {
+  restaurantSlug: string;
+  restaurantName: string;
   tableId: string | null;
   menu: PublicMenu;
 }) {
@@ -60,7 +69,7 @@ export default function OrderBoard({
     setSending(true);
     setSendError(null);
     try {
-      const order = await api<Order>("/api/orders", {
+      const order = await api<Order>(`/api/r/${restaurantSlug}/orders`, {
         method: "POST",
         body: JSON.stringify({
           tableId: selectedTable,
@@ -68,7 +77,7 @@ export default function OrderBoard({
           lines: lines.map((line) => ({ menuItemId: line.item.id, quantity: line.quantity })),
         }),
       });
-      router.push(`/commande/${order.id}`);
+      router.push(`/r/${restaurantSlug}/commande/${order.id}`);
     } catch (error) {
       setSendError((error as Error).message);
       setSending(false);
@@ -85,7 +94,7 @@ export default function OrderBoard({
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">
               Commande en ligne
             </p>
-            <h1 className="mt-0.5 text-2xl font-extrabold tracking-tight">{menu.restaurantName}</h1>
+            <h1 className="mt-0.5 text-2xl font-extrabold tracking-tight">{restaurantName}</h1>
           </div>
           <span className="card-float-sm shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white">
             {tableLabel}

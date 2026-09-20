@@ -12,6 +12,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "jose": "^6.2.12",
     "next": "16.3.4",
     "postgres": "^3.4.9",
     "qrcode": "^1.5.4",

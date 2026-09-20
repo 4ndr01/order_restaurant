@@ -1,41 +1,37 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 
-const ADMIN_USER = process.env.ADMIN_USER ?? "admin";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "restaurant";
+export async function proxy(request: NextRequest) {
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  const session = token ? await verifySessionToken(token) : null;
 
-function unauthorized() {
-  return new NextResponse("Authentification requise.", {
-    status: 401,
-    headers: {
-      "WWW-Authenticate": 'Basic realm="Administration du restaurant", charset="UTF-8"',
-    },
-  });
-}
+  const { pathname } = request.nextUrl;
 
-export function proxy(request: NextRequest) {
-  const header = request.headers.get("authorization");
-  if (!header?.startsWith("Basic ")) {
-    return unauthorized();
+  if (pathname.startsWith("/api/admin/")) {
+    if (!session) {
+      return Response.json({ error: "Non authentifié." }, { status: 401 });
+    }
+    return NextResponse.next();
   }
 
-  let decoded: string;
-  try {
-    decoded = atob(header.slice(6));
-  } catch {
-    return unauthorized();
-  }
-
-  const separator = decoded.indexOf(":");
-  const user = decoded.slice(0, separator);
-  const password = decoded.slice(separator + 1);
-
-  if (user !== ADMIN_USER || password !== ADMIN_PASSWORD) {
-    return unauthorized();
+  // /r/:slug/admin/...
+  const match = pathname.match(/^\/r\/([^/]+)\/admin(?:\/|$)/);
+  if (match) {
+    const slug = match[1];
+    if (!session) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("next", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+    if (session.slug !== slug) {
+      return NextResponse.redirect(new URL(`/r/${session.slug}/admin`, request.url));
+    }
+    return NextResponse.next();
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/admin/:path*"],
+  matcher: ["/r/:slug/admin/:path*", "/api/admin/:path*"],
 };

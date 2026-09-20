@@ -1,43 +1,24 @@
-import { updateDb } from "@/lib/db";
-import type { MenuItem } from "@/lib/types";
+import { requireSession } from "@/lib/auth";
+import { deleteMenuItem, updateMenuItem } from "@/lib/repo";
 
 export const dynamic = "force-dynamic";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireSession();
+  if ("response" in auth) return auth.response;
+
   const { id } = await params;
   const body = await request.json().catch(() => null);
   if (!body) {
     return Response.json({ error: "Requête invalide." }, { status: 400 });
   }
 
-  const result = await updateDb<MenuItem | { error: string }>((db) => {
-    const item = db.menu.find((entry) => entry.id === id);
-    if (!item) {
-      return { error: "Plat introuvable." };
-    }
-    if (typeof body.name === "string" && body.name.trim()) {
-      item.name = body.name.trim().slice(0, 80);
-    }
-    if (typeof body.description === "string") {
-      item.description = body.description.trim().slice(0, 200);
-    }
-    if (body.price !== undefined) {
-      const price = Number(body.price);
-      if (!Number.isFinite(price) || price < 0) {
-        return { error: "Prix invalide." };
-      }
-      item.price = Math.round(price * 100) / 100;
-    }
-    if (typeof body.categoryId === "string") {
-      if (!db.categories.some((category) => category.id === body.categoryId)) {
-        return { error: "Catégorie inconnue." };
-      }
-      item.categoryId = body.categoryId;
-    }
-    if (typeof body.available === "boolean") {
-      item.available = body.available;
-    }
-    return item;
+  const result = await updateMenuItem(auth.session.restaurantId, id, {
+    name: typeof body.name === "string" ? body.name : undefined,
+    description: typeof body.description === "string" ? body.description : undefined,
+    price: body.price !== undefined ? Number(body.price) : undefined,
+    categoryId: typeof body.categoryId === "string" ? body.categoryId : undefined,
+    available: typeof body.available === "boolean" ? body.available : undefined,
   });
 
   if ("error" in result) {
@@ -47,16 +28,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const removed = await updateDb((db) => {
-    const index = db.menu.findIndex((entry) => entry.id === id);
-    if (index === -1) {
-      return false;
-    }
-    db.menu.splice(index, 1);
-    return true;
-  });
+  const auth = await requireSession();
+  if ("response" in auth) return auth.response;
 
+  const { id } = await params;
+  const removed = await deleteMenuItem(auth.session.restaurantId, id);
   if (!removed) {
     return Response.json({ error: "Plat introuvable." }, { status: 404 });
   }

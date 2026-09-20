@@ -1,36 +1,32 @@
 import Link from "next/link";
-import { readDb } from "@/lib/db";
 
-export const dynamic = "force-dynamic";
-
-export default async function HomePage() {
-  const db = await readDb();
-
+export default function HomePage() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-6 py-16">
       <span className="inline-flex w-fit rounded-full bg-brand-soft px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-brand">
         Commande à table
       </span>
       <h1 className="mt-4 text-4xl font-extrabold tracking-tight sm:text-5xl">
-        {db.restaurantName}
+        Le menu de votre restaurant, accessible par QR code
       </h1>
       <p className="mt-4 text-lg text-muted">
-        Scannez le QR code posé sur votre table pour ouvrir le menu, composer votre commande et
-        suivre sa préparation en direct. Aucune application à installer.
+        Vos clients scannent le QR code de leur table, commandent depuis leur téléphone et suivent
+        la préparation en direct. Votre cuisine reçoit les commandes en temps réel. Gratuit pour
+        commencer, sans engagement.
       </p>
 
       <div className="mt-8 flex flex-wrap gap-3">
         <Link
-          href="/menu"
+          href="/signup"
           className="card-float rounded-full bg-brand px-6 py-3.5 font-semibold text-white transition hover:bg-brand-strong"
         >
-          Voir le menu
+          Créer mon restaurant
         </Link>
         <Link
-          href="/admin"
+          href="/login"
           className="rounded-full bg-surface px-6 py-3.5 font-semibold text-foreground transition hover:bg-brand-soft hover:text-brand"
         >
-          Espace restaurant
+          Se connecter
         </Link>
       </div>
 

@@ -27,6 +27,6 @@ export function resolveBaseUrl(
   return fallback;
 }
 
-export function tableUrl(baseUrl: string, tableId: string): string {
-  return `${baseUrl.replace(/\/$/, "")}/table/${encodeURIComponent(tableId)}`;
+export function tableUrl(baseUrl: string, slug: string, tableId: string): string {
+  return `${baseUrl.replace(/\/$/, "")}/r/${encodeURIComponent(slug)}/table/${encodeURIComponent(tableId)}`;
 }
