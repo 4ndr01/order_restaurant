@@ -1,4 +1,5 @@
 import "server-only";
+import { randomBytes } from "node:crypto";
 import postgres from "postgres";
 
 // Résolu à la première requête, pas au chargement du module : sinon,
@@ -129,6 +130,12 @@ async function migrate(): Promise<void> {
   `;
 }
 
+/**
+ * Les identifiants de commande servent de jeton d'accès à la page de suivi
+ * (/r/<slug>/commande/<id> affiche le détail et le total au porteur du lien).
+ * Ils doivent donc être imprévisibles : Math.random n'est pas cryptographique
+ * et se prédit, ce qui permettrait de lire les commandes d'autres clients.
+ */
 export function createId(): string {
-  return Math.random().toString(36).slice(2, 10);
+  return randomBytes(12).toString("base64url");
 }
