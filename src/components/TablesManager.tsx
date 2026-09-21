@@ -3,22 +3,24 @@
 import { useCallback, useState } from "react";
 import Image from "next/image";
 import { api } from "@/lib/client";
-import type { Table } from "@/lib/types";
+import type { RestaurantTable } from "@/lib/types";
 
 export default function TablesManager({
+  restaurantSlug,
   initialTables,
   defaultBaseUrl,
 }: {
-  initialTables: Table[];
+  restaurantSlug: string;
+  initialTables: RestaurantTable[];
   defaultBaseUrl: string;
 }) {
-  const [tables, setTables] = useState<Table[]>(initialTables);
+  const [tables, setTables] = useState<RestaurantTable[]>(initialTables);
   const [baseUrl, setBaseUrl] = useState(defaultBaseUrl);
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const payload = await api<{ tables: Table[] }>("/api/admin/tables");
+    const payload = await api<{ tables: RestaurantTable[] }>("/api/admin/tables");
     setTables(payload.tables);
   }, []);
 
@@ -72,13 +74,13 @@ export default function TablesManager({
 
       <ul className="print-grid mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {tables.map((table) => {
-          const target = `${baseUrl.replace(/\/$/, "")}/table/${table.id}`;
+          const target = `${baseUrl.replace(/\/$/, "")}/r/${restaurantSlug}/table/${table.id}`;
           return (
             <li
               key={table.id}
               className="print-card card-float-sm flex flex-col items-center rounded-3xl bg-surface p-5 text-center"
             >
-              {editing?.id === table.id ? (
+              {editing && editing.id === table.id ? (
                 <form
                   className="print-hidden flex w-full gap-2"
                   onSubmit={(event) => {

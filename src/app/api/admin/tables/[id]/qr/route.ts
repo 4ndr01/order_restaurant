@@ -1,19 +1,23 @@
 import QRCode from "qrcode";
+import { requireSession } from "@/lib/auth";
 import { resolveBaseUrl, tableUrl } from "@/lib/base-url";
-import { readDb } from "@/lib/db";
+import { getTable } from "@/lib/repo";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireSession();
+  if ("response" in auth) return auth.response;
+
   const { id } = await params;
-  const db = await readDb();
-  if (!db.tables.some((table) => table.id === id)) {
+  const table = await getTable(auth.session.restaurantId, id);
+  if (!table) {
     return Response.json({ error: "Table introuvable." }, { status: 404 });
   }
 
   const url = new URL(request.url);
   const baseUrl = resolveBaseUrl(request.headers, url.searchParams.get("base"), url.origin);
-  const target = tableUrl(baseUrl, id);
+  const target = tableUrl(baseUrl, auth.session.slug, id);
   const png = await QRCode.toBuffer(target, {
     width: 640,
     margin: 1,

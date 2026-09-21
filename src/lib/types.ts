@@ -1,11 +1,21 @@
+export type Restaurant = {
+  id: string;
+  slug: string;
+  name: string;
+  plan: string;
+  priceCents: number;
+};
+
 export type Category = {
   id: string;
+  restaurantId: string;
   name: string;
   position: number;
 };
 
 export type MenuItem = {
   id: string;
+  restaurantId: string;
   categoryId: string;
   name: string;
   description: string;
@@ -13,8 +23,9 @@ export type MenuItem = {
   available: boolean;
 };
 
-export type Table = {
+export type RestaurantTable = {
   id: string;
+  restaurantId: string;
   name: string;
 };
 
@@ -45,6 +56,7 @@ export type OrderLine = {
 
 export type Order = {
   id: string;
+  restaurantId: string;
   reference: string;
   tableId: string | null;
   tableName: string;
@@ -54,12 +66,4 @@ export type Order = {
   status: OrderStatus;
   createdAt: string;
   updatedAt: string;
-};
-
-export type Database = {
-  restaurantName: string;
-  categories: Category[];
-  menu: MenuItem[];
-  tables: Table[];
-  orders: Order[];
 };

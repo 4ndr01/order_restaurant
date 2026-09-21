@@ -6,7 +6,6 @@ import { formatPrice } from "@/lib/format";
 import type { Category, MenuItem } from "@/lib/types";
 
 export type MenuPayload = {
-  restaurantName: string;
   categories: Category[];
   items: MenuItem[];
 };
