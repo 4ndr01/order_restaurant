@@ -71,20 +71,38 @@ function mapOrder(row: OrderRow): Order {
   };
 }
 
+type RestaurantRow = {
+  id: string;
+  slug: string;
+  name: string;
+  plan: string;
+  price_cents: number;
+};
+
+function mapRestaurant(row: RestaurantRow): Restaurant {
+  return {
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    plan: row.plan,
+    priceCents: row.price_cents,
+  };
+}
+
 export async function getRestaurantBySlug(slug: string): Promise<Restaurant | null> {
   await ensureSchema();
-  const rows = await sql<{ id: string; slug: string; name: string }[]>`
-    SELECT id, slug, name FROM restaurants WHERE slug = ${slug}
+  const rows = await sql<RestaurantRow[]>`
+    SELECT id, slug, name, plan, price_cents FROM restaurants WHERE slug = ${slug}
   `;
-  return rows[0] ?? null;
+  return rows[0] ? mapRestaurant(rows[0]) : null;
 }
 
 export async function getRestaurantById(id: string): Promise<Restaurant | null> {
   await ensureSchema();
-  const rows = await sql<{ id: string; slug: string; name: string }[]>`
-    SELECT id, slug, name FROM restaurants WHERE id = ${id}
+  const rows = await sql<RestaurantRow[]>`
+    SELECT id, slug, name, plan, price_cents FROM restaurants WHERE id = ${id}
   `;
-  return rows[0] ?? null;
+  return rows[0] ? mapRestaurant(rows[0]) : null;
 }
 
 export async function isSlugTaken(slug: string): Promise<boolean> {

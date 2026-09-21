@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/client";
+import { ANNOUNCED_PLAN, formatPlanPrice } from "@/lib/plans";
 import { slugify } from "@/lib/slug";
 
 export default function SignupForm() {
@@ -43,7 +44,10 @@ export default function SignupForm() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 py-16">
       <h1 className="text-3xl font-extrabold tracking-tight">Créer mon restaurant</h1>
-      <p className="mt-2 text-muted">Gratuit pour commencer, votre menu prêt en une minute.</p>
+      <p className="mt-2 text-muted">
+        Gratuit pendant le lancement, puis {formatPlanPrice(ANNOUNCED_PLAN.priceCents)}. Aucune
+        carte bancaire demandée, votre menu prêt en une minute.
+      </p>
 
       <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
         <label className="block text-sm">
