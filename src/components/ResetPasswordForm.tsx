@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/client";
 
-export default function LoginForm() {
+export default function ResetPasswordForm({ token }: { token: string }) {
   const router = useRouter();
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -17,52 +17,53 @@ export default function LoginForm() {
     setPending(true);
     setError(null);
     try {
-      const result = await api<{ slug: string }>("/api/auth/login", {
+      await api("/api/auth/reset-password", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ token, password }),
       });
-      router.push(`/r/${result.slug}/admin`);
-      router.refresh();
+      setDone(true);
     } catch (cause) {
       setError((cause as Error).message);
       setPending(false);
     }
   }
 
+  if (done) {
+    return (
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 py-16">
+        <h1 className="text-3xl font-extrabold tracking-tight">Mot de passe modifié</h1>
+        <p className="mt-4 rounded-2xl bg-brand-soft px-4 py-3.5 text-sm text-brand">
+          Votre nouveau mot de passe est enregistré. Vous pouvez maintenant vous connecter.
+        </p>
+        <button
+          type="button"
+          onClick={() => router.push("/login")}
+          className="card-float mt-6 min-h-14 w-full rounded-full bg-brand px-5 font-semibold text-white transition hover:bg-brand-strong"
+        >
+          Se connecter
+        </button>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 py-16">
-      <h1 className="text-3xl font-extrabold tracking-tight">Connexion</h1>
-      <p className="mt-2 text-muted">Accédez à l&apos;espace de gestion de votre restaurant.</p>
+      <h1 className="text-3xl font-extrabold tracking-tight">Nouveau mot de passe</h1>
+      <p className="mt-2 text-muted">Choisissez un mot de passe pour votre espace restaurant.</p>
 
       <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
         <label className="block text-sm">
-          <span className="font-medium text-muted">Email</span>
-          <input
-            required
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="vous@restaurant.fr"
-            className="mt-1.5 w-full rounded-2xl bg-brand-soft px-3.5 py-2.5"
-          />
-        </label>
-
-        <label className="block text-sm">
-          <span className="font-medium text-muted">Mot de passe</span>
+          <span className="font-medium text-muted">Nouveau mot de passe</span>
           <input
             required
             type="password"
+            minLength={8}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
+            placeholder="8 caractères minimum"
             className="mt-1.5 w-full rounded-2xl bg-brand-soft px-3.5 py-2.5"
           />
         </label>
-
-        <p className="text-right text-sm">
-          <Link href="/mot-de-passe-oublie" className="font-medium text-muted hover:text-brand">
-            Mot de passe oublié ?
-          </Link>
-        </p>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
@@ -71,14 +72,13 @@ export default function LoginForm() {
           disabled={pending}
           className="card-float min-h-14 w-full rounded-full bg-brand px-5 font-semibold text-white transition hover:bg-brand-strong disabled:opacity-50"
         >
-          {pending ? "Connexion en cours…" : "Se connecter"}
+          {pending ? "Enregistrement…" : "Enregistrer"}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-muted">
-        Pas encore de compte ?{" "}
-        <Link href="/signup" className="font-semibold text-brand">
-          Créer mon restaurant
+        <Link href="/mot-de-passe-oublie" className="font-semibold text-brand">
+          Demander un nouveau lien
         </Link>
       </p>
     </main>

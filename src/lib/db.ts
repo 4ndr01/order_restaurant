@@ -74,6 +74,17 @@ async function migrate(): Promise<void> {
       created_at timestamptz NOT NULL DEFAULT now()
     )
   `;
+  // On stocke l'empreinte du jeton, jamais le jeton lui-même : une fuite de
+  // la base ne permettrait donc pas de réinitialiser les mots de passe.
+  await sql`
+    CREATE TABLE IF NOT EXISTS password_resets (
+      token_hash text PRIMARY KEY,
+      owner_id text NOT NULL REFERENCES restaurant_owners(id) ON DELETE CASCADE,
+      expires_at timestamptz NOT NULL,
+      used_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `;
   await sql`
     CREATE TABLE IF NOT EXISTS categories (
       id text PRIMARY KEY,
