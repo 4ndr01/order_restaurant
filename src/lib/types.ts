@@ -2,6 +2,8 @@ export type Restaurant = {
   id: string;
   slug: string;
   name: string;
+  plan: string;
+  priceCents: number;
 };
 
 export type Category = {

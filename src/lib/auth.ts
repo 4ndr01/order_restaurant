@@ -10,6 +10,7 @@ import {
   verifySessionToken,
   type SessionPayload,
 } from "./session";
+import { CURRENT_PLAN } from "./plans";
 import { isSlugTaken } from "./repo";
 import type { Restaurant } from "./types";
 
@@ -96,7 +97,10 @@ export async function signup(
   const ownerId = createId();
   const passwordHash = await hashPassword(input.password);
 
-  await sql`INSERT INTO restaurants (id, slug, name) VALUES (${restaurantId}, ${slug}, ${restaurantName})`;
+  await sql`
+    INSERT INTO restaurants (id, slug, name, plan, price_cents)
+    VALUES (${restaurantId}, ${slug}, ${restaurantName}, ${CURRENT_PLAN.id}, ${CURRENT_PLAN.priceCents})
+  `;
   await sql`
     INSERT INTO restaurant_owners (id, restaurant_id, email, password_hash)
     VALUES (${ownerId}, ${restaurantId}, ${email}, ${passwordHash})
@@ -104,7 +108,16 @@ export async function signup(
   await seedRestaurant(restaurantId);
 
   const session: SessionPayload = { restaurantId, ownerId, slug };
-  return { restaurant: { id: restaurantId, slug, name: restaurantName }, session };
+  return {
+    restaurant: {
+      id: restaurantId,
+      slug,
+      name: restaurantName,
+      plan: CURRENT_PLAN.id,
+      priceCents: CURRENT_PLAN.priceCents,
+    },
+    session,
+  };
 }
 
 export type LoginInput = { email: string; password: string };

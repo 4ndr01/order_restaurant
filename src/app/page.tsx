@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ANNOUNCED_PLAN, formatPlanPrice } from "@/lib/plans";
 
 export default function HomePage() {
   return (
@@ -11,8 +12,12 @@ export default function HomePage() {
       </h1>
       <p className="mt-4 text-lg text-muted">
         Vos clients scannent le QR code de leur table, commandent depuis leur téléphone et suivent
-        la préparation en direct. Votre cuisine reçoit les commandes en temps réel. Gratuit pour
-        commencer, sans engagement.
+        la préparation en direct. Votre cuisine reçoit les commandes en temps réel.
+      </p>
+
+      <p className="mt-4 inline-flex w-fit items-center gap-2 rounded-2xl bg-brand-soft px-4 py-3 text-sm font-semibold text-brand">
+        Gratuit pendant le lancement, puis {formatPlanPrice(ANNOUNCED_PLAN.priceCents)} — sans
+        engagement
       </p>
 
       <div className="mt-8 flex flex-wrap gap-3">

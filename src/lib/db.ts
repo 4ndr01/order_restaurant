@@ -37,7 +37,13 @@ export const sql: postgres.Sql = new Proxy(function sql() {} as unknown as postg
 let ready: Promise<void> | null = null;
 export function ensureSchema(): Promise<void> {
   if (!ready) {
-    ready = migrate();
+    // En cas d'échec (base momentanément injoignable au démarrage, par
+    // exemple), on vide le cache pour que la requête suivante retente, au
+    // lieu de rejouer indéfiniment la même erreur jusqu'au redémarrage.
+    ready = migrate().catch((error) => {
+      ready = null;
+      throw error;
+    });
   }
   return ready;
 }
@@ -50,6 +56,13 @@ async function migrate(): Promise<void> {
       name text NOT NULL,
       created_at timestamptz NOT NULL DEFAULT now()
     )
+  `;
+  // Abonnement : ajouté après coup, donc en ALTER pour que les bases déjà
+  // déployées se mettent à jour sans intervention manuelle.
+  await sql`
+    ALTER TABLE restaurants
+      ADD COLUMN IF NOT EXISTS plan text NOT NULL DEFAULT 'lancement',
+      ADD COLUMN IF NOT EXISTS price_cents integer NOT NULL DEFAULT 0
   `;
   await sql`
     CREATE TABLE IF NOT EXISTS restaurant_owners (

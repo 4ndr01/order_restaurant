@@ -15,6 +15,7 @@ export default async function AdminLayout({
     { href: `${base}/cuisine`, label: "Cuisine" },
     { href: `${base}/menu`, label: "Menu" },
     { href: `${base}/tables`, label: "QR codes" },
+    { href: `${base}/abonnement`, label: "Abonnement" },
   ];
 
   return (
