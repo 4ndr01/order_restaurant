@@ -1,9 +1,24 @@
+import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { createOrder, getRestaurantBySlug } from "@/lib/repo";
 
 export const dynamic = "force-dynamic";
 
+// Volontairement large : tous les clients du wifi d'une salle partagent la
+// même adresse IP, donc un coup de feu doit passer sans encombre. Seul l'abus
+// automatisé évident est arrêté.
+const MAX_ORDERS = 30;
+const WINDOW_MS = 60_000;
+
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+
+  const limit = rateLimit(`orders:${slug}:${clientIp(request)}`, MAX_ORDERS, WINDOW_MS);
+  if (!limit.allowed) {
+    return tooManyRequests(
+      limit.retryAfterSeconds,
+      "Trop de commandes envoyées coup sur coup. Patientez un instant avant de réessayer.",
+    );
+  }
   const restaurant = await getRestaurantBySlug(slug);
   if (!restaurant) {
     return Response.json({ error: "Restaurant introuvable." }, { status: 404 });
