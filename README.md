@@ -67,7 +67,9 @@ Pour figer l'adresse une fois pour toutes, définissez `NEXT_PUBLIC_BASE_URL`.
 
 - **Restaurateurs** : compte email/mot de passe, session en cookie signé (JWT, `jose`) valable 30 jours. `src/proxy.ts` vérifie la session sur toutes les routes `/r/<slug>/admin/*` (redirection vers `/login` si absente, vers le bon restaurant si le slug de l'URL ne correspond pas à la session) et sur `/api/admin/*`.
 - **Mots de passe** : hachés avec `scrypt` (`node:crypto`, sans dépendance native) et comparés en temps constant.
-- Pas encore de réinitialisation de mot de passe ni de comptes multiples par restaurant (un seul propriétaire) — à ajouter si le besoin se présente.
+- **Identifiants** (`createId`) : tirés de `randomBytes`, 96 bits d'entropie. Important car l'identifiant d'une commande sert de jeton d'accès à sa page de suivi.
+- **Limitation de débit** (`src/lib/rate-limit.ts`, en mémoire) : 5 tentatives de connexion par minute et par IP contre la force brute ; 30 commandes par minute et par IP, volontairement large car tous les clients du wifi d'une salle partagent la même adresse — un coup de feu doit passer, seul l'abus automatisé est arrêté.
+- Pas encore de réinitialisation de mot de passe, de vérification d'email, ni de comptes multiples par restaurant (un seul propriétaire) — à ajouter si le besoin se présente.
 
 ## Données
 
