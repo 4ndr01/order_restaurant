@@ -1,5 +1,6 @@
 import { createPasswordResetToken } from "@/lib/auth";
 import { resolveBaseUrl } from "@/lib/base-url";
+import { BRAND_NAME } from "@/lib/brand";
 import { sendEmail } from "@/lib/email";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 
@@ -28,12 +29,12 @@ export async function POST(request: Request) {
     try {
       await sendEmail({
         to: email.trim().toLowerCase(),
-        subject: "Réinitialisation de votre mot de passe",
+        subject: `Réinitialisation de votre mot de passe ${BRAND_NAME}`,
         text:
           `Bonjour,\n\nVous avez demandé à réinitialiser le mot de passe de votre espace ` +
           `restaurant.\n\nCliquez sur ce lien pour choisir un nouveau mot de passe :\n${link}\n\n` +
           `Ce lien est valable une heure. Si vous n'êtes pas à l'origine de cette demande, ` +
-          `ignorez simplement cet email.`,
+          `ignorez simplement cet email.\n\n— L'équipe ${BRAND_NAME}`,
       });
     } catch (error) {
       // L'échec reste invisible côté visiteur : révéler que l'envoi a échoué

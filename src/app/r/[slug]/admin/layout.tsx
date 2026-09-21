@@ -1,5 +1,6 @@
 import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
+import { BRAND_NAME } from "@/lib/brand";
 
 export default async function AdminLayout({
   children,
@@ -22,8 +23,11 @@ export default async function AdminLayout({
     <div className="flex min-h-full flex-1 flex-col">
       <header className="print-hidden sticky top-0 z-20 bg-background/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 pt-4">
-          <span className="text-sm font-bold uppercase tracking-[0.18em] text-brand">
-            Espace restaurant
+          <span className="flex items-baseline gap-2">
+            <span className="text-base font-extrabold tracking-tight">{BRAND_NAME}</span>
+            <span className="text-xs font-bold uppercase tracking-[0.18em] text-brand">
+              Espace restaurant
+            </span>
           </span>
           <div className="flex items-center gap-1">
             <Link
