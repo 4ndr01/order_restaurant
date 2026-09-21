@@ -69,7 +69,10 @@ Pour figer l'adresse une fois pour toutes, définissez `NEXT_PUBLIC_BASE_URL`.
 - **Mots de passe** : hachés avec `scrypt` (`node:crypto`, sans dépendance native) et comparés en temps constant.
 - **Identifiants** (`createId`) : tirés de `randomBytes`, 96 bits d'entropie. Important car l'identifiant d'une commande sert de jeton d'accès à sa page de suivi.
 - **Limitation de débit** (`src/lib/rate-limit.ts`, en mémoire) : 5 tentatives de connexion par minute et par IP contre la force brute ; 30 commandes par minute et par IP, volontairement large car tous les clients du wifi d'une salle partagent la même adresse — un coup de feu doit passer, seul l'abus automatisé est arrêté.
-- Pas encore de réinitialisation de mot de passe, de vérification d'email, ni de comptes multiples par restaurant (un seul propriétaire) — à ajouter si le besoin se présente.
+- **Mot de passe oublié** : `/mot-de-passe-oublie` envoie un lien valable une heure (email via [Resend](https://resend.com), `RESEND_API_KEY`). Seule l'empreinte du jeton est stockée, jamais le jeton ; il est à usage unique et les autres jetons du compte sont invalidés à la réinitialisation. La réponse est identique que l'email existe ou non, pour ne pas révéler qui est inscrit.
+  - ⚠️ Avec l'expéditeur de test `onboarding@resend.dev`, Resend n'accepte d'envoyer qu'à l'adresse du titulaire du compte Resend. Pour que les restaurateurs reçoivent réellement leur lien, il faut vérifier un domaine dans Resend et mettre `EMAIL_FROM` sur une adresse de ce domaine.
+  - Les sessions déjà ouvertes ailleurs restent valides après un changement de mot de passe (jetons de session sans état, non révocables). Acceptable pour l'usage « j'ai oublié mon mot de passe » ; à revoir si un compte devait être compromis.
+- Pas encore de vérification d'email à l'inscription, ni de comptes multiples par restaurant (un seul propriétaire) — à ajouter si le besoin se présente.
 
 ## Données
 

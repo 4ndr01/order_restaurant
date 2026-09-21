@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { ensureSchema, createId, sql } from "./db";
 import { hashPassword, verifyPassword } from "./password";
@@ -144,4 +145,76 @@ export async function login(
   return {
     session: { restaurantId: owner.restaurant_id, ownerId: owner.id, slug: owner.slug },
   };
+}
+
+// ---- Réinitialisation de mot de passe ----
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+/**
+ * Crée un jeton de réinitialisation si l'email correspond à un compte.
+ * Renvoie `null` quand aucun compte ne correspond : l'appelant doit répondre
+ * la même chose dans les deux cas, pour ne pas révéler quels emails sont
+ * inscrits.
+ */
+export async function createPasswordResetToken(email: string): Promise<string | null> {
+  await ensureSchema();
+
+  const normalized = email.trim().toLowerCase();
+  const [owner] = await sql<{ id: string }[]>`
+    SELECT id FROM restaurant_owners WHERE email = ${normalized}
+  `;
+  if (!owner) {
+    return null;
+  }
+
+  const token = randomBytes(32).toString("base64url");
+  const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+  await sql`
+    INSERT INTO password_resets (token_hash, owner_id, expires_at)
+    VALUES (${hashToken(token)}, ${owner.id}, ${expiresAt})
+  `;
+  return token;
+}
+
+export async function resetPassword(
+  token: string,
+  newPassword: string,
+): Promise<{ ok: true } | { error: string }> {
+  await ensureSchema();
+
+  if (newPassword.length < 8) {
+    return { error: "Le mot de passe doit faire au moins 8 caractères." };
+  }
+
+  const [reset] = await sql<{ owner_id: string }[]>`
+    SELECT owner_id FROM password_resets
+    WHERE token_hash = ${hashToken(token)}
+      AND used_at IS NULL
+      AND expires_at > now()
+  `;
+  if (!reset) {
+    return { error: "Ce lien de réinitialisation est invalide ou a expiré." };
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await sql.begin(async (tx) => {
+    await tx`
+      UPDATE restaurant_owners SET password_hash = ${passwordHash} WHERE id = ${reset.owner_id}
+    `;
+    // Le jeton est consommé, et les autres jetons en attente du même compte
+    // sont invalidés : un lien plus ancien resté dans une boîte mail ne doit
+    // plus rien permettre.
+    await tx`
+      UPDATE password_resets SET used_at = now()
+      WHERE owner_id = ${reset.owner_id} AND used_at IS NULL
+    `;
+    return [];
+  });
+
+  return { ok: true };
 }
