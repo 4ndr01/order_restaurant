@@ -1,120 +1,96 @@
-import type { Database } from "./types";
+import "server-only";
+import { createId, sql } from "./db";
 
-export function seedDatabase(): Database {
-  return {
-    restaurantName: "Le Comptoir",
-    categories: [
-      { id: "entrees", name: "Entrées", position: 1 },
-      { id: "plats", name: "Plats", position: 2 },
-      { id: "desserts", name: "Desserts", position: 3 },
-      { id: "boissons", name: "Boissons", position: 4 },
-    ],
-    menu: [
-      {
-        id: "burrata",
-        categoryId: "entrees",
-        name: "Burrata crémeuse",
-        description: "Tomates anciennes, basilic, huile d'olive vierge extra",
-        price: 9.5,
-        available: true,
-      },
-      {
-        id: "soupe",
-        categoryId: "entrees",
-        name: "Velouté de saison",
-        description: "Légumes du marché, croûtons maison",
-        price: 7,
-        available: true,
-      },
-      {
-        id: "tartare",
-        categoryId: "entrees",
-        name: "Tartare de saumon",
-        description: "Aneth, citron vert, blinis tièdes",
-        price: 11,
-        available: true,
-      },
-      {
-        id: "entrecote",
-        categoryId: "plats",
-        name: "Entrecôte grillée",
-        description: "Frites maison, beurre d'herbes, salade",
-        price: 22,
-        available: true,
-      },
-      {
-        id: "risotto",
-        categoryId: "plats",
-        name: "Risotto aux champignons",
-        description: "Champignons de Paris, parmesan affiné 24 mois",
-        price: 17.5,
-        available: true,
-      },
-      {
-        id: "poisson",
-        categoryId: "plats",
-        name: "Filet de dorade",
-        description: "Écrasé de pommes de terre, sauce vierge",
-        price: 19.5,
-        available: true,
-      },
-      {
-        id: "burger",
-        categoryId: "plats",
-        name: "Burger du comptoir",
-        description: "Bœuf charolais, cheddar, oignons confits, frites",
-        price: 16,
-        available: true,
-      },
-      {
-        id: "fondant",
-        categoryId: "desserts",
-        name: "Fondant au chocolat",
-        description: "Cœur coulant, glace vanille de Madagascar",
-        price: 8,
-        available: true,
-      },
-      {
-        id: "tarte",
-        categoryId: "desserts",
-        name: "Tarte du jour",
-        description: "Préparée chaque matin par le chef pâtissier",
-        price: 7,
-        available: true,
-      },
-      {
-        id: "cafe",
-        categoryId: "boissons",
-        name: "Café expresso",
-        description: "Torréfaction artisanale",
-        price: 2.5,
-        available: true,
-      },
-      {
-        id: "limonade",
-        categoryId: "boissons",
-        name: "Limonade maison",
-        description: "Citron pressé, menthe fraîche",
-        price: 4.5,
-        available: true,
-      },
-      {
-        id: "vin",
-        categoryId: "boissons",
-        name: "Verre de vin rouge",
-        description: "Côtes-du-Rhône, 12 cl",
-        price: 5.5,
-        available: true,
-      },
-    ],
-    tables: [
-      { id: "1", name: "Table 1" },
-      { id: "2", name: "Table 2" },
-      { id: "3", name: "Table 3" },
-      { id: "4", name: "Table 4" },
-      { id: "5", name: "Table 5" },
-      { id: "6", name: "Table 6" },
-    ],
-    orders: [],
-  };
+type SeedCategory = { key: string; name: string };
+type SeedItem = {
+  categoryKey: string;
+  name: string;
+  description: string;
+  price: number;
+};
+
+const CATEGORIES: SeedCategory[] = [
+  { key: "entrees", name: "Entrées" },
+  { key: "plats", name: "Plats" },
+  { key: "desserts", name: "Desserts" },
+  { key: "boissons", name: "Boissons" },
+];
+
+const ITEMS: SeedItem[] = [
+  {
+    categoryKey: "entrees",
+    name: "Burrata crémeuse",
+    description: "Tomates anciennes, basilic, huile d'olive vierge extra",
+    price: 9.5,
+  },
+  {
+    categoryKey: "entrees",
+    name: "Velouté de saison",
+    description: "Légumes du marché, croûtons maison",
+    price: 7,
+  },
+  {
+    categoryKey: "plats",
+    name: "Entrecôte grillée",
+    description: "Frites maison, beurre d'herbes, salade",
+    price: 22,
+  },
+  {
+    categoryKey: "plats",
+    name: "Risotto aux champignons",
+    description: "Champignons de Paris, parmesan affiné 24 mois",
+    price: 17.5,
+  },
+  {
+    categoryKey: "desserts",
+    name: "Fondant au chocolat",
+    description: "Cœur coulant, glace vanille de Madagascar",
+    price: 8,
+  },
+  {
+    categoryKey: "boissons",
+    name: "Café expresso",
+    description: "Torréfaction artisanale",
+    price: 2.5,
+  },
+];
+
+const TABLE_COUNT = 6;
+
+/**
+ * Peuple un nouveau restaurant avec un menu d'exemple modifiable, pour que le
+ * compte créé à l'inscription ne soit pas vide.
+ */
+export async function seedRestaurant(restaurantId: string): Promise<void> {
+  const categoryIds = new Map<string, string>();
+
+  for (const [index, category] of CATEGORIES.entries()) {
+    const id = createId();
+    categoryIds.set(category.key, id);
+    await sql`
+      INSERT INTO categories (id, restaurant_id, name, position)
+      VALUES (${id}, ${restaurantId}, ${category.name}, ${index + 1})
+    `;
+  }
+
+  for (const item of ITEMS) {
+    const categoryId = categoryIds.get(item.categoryKey);
+    if (!categoryId) {
+      throw new Error(`Catégorie de seed inconnue : ${item.categoryKey}`);
+    }
+    await sql`
+      INSERT INTO menu_items (id, restaurant_id, category_id, name, description, price, available)
+      VALUES (
+        ${createId()}, ${restaurantId}, ${categoryId}, ${item.name},
+        ${item.description}, ${item.price}, true
+      )
+    `;
+  }
+
+  for (let number = 1; number <= TABLE_COUNT; number += 1) {
+    await sql`
+      INSERT INTO restaurant_tables (id, restaurant_id, name)
+      VALUES (${createId()}, ${restaurantId}, ${`Table ${number}`})
+    `;
+  }
 }

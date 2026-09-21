@@ -16,7 +16,13 @@ const STATUS_HINTS: Record<OrderStatus, string> = {
   annulee: "Cette commande a été annulée. Rapprochez-vous du service.",
 };
 
-export default function OrderTracker({ orderId }: { orderId: string }) {
+export default function OrderTracker({
+  restaurantSlug,
+  orderId,
+}: {
+  restaurantSlug: string;
+  orderId: string;
+}) {
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,7 +31,7 @@ export default function OrderTracker({ orderId }: { orderId: string }) {
 
     async function refresh() {
       try {
-        const data = await api<Order>(`/api/orders/${orderId}`);
+        const data = await api<Order>(`/api/r/${restaurantSlug}/orders/${orderId}`);
         if (active) {
           setOrder(data);
           setError(null);
@@ -43,14 +49,14 @@ export default function OrderTracker({ orderId }: { orderId: string }) {
       active = false;
       clearInterval(timer);
     };
-  }, [orderId]);
+  }, [restaurantSlug, orderId]);
 
   if (error) {
     return (
       <main className="mx-auto w-full max-w-md px-5 py-16 text-center">
         <p className="text-lg font-medium">Commande introuvable</p>
         <p className="mt-2 text-sm text-muted">{error}</p>
-        <Link href="/menu" className="mt-6 inline-block text-brand underline">
+        <Link href={`/r/${restaurantSlug}/menu`} className="mt-6 inline-block text-brand underline">
           Retour au menu
         </Link>
       </main>
@@ -118,7 +124,11 @@ export default function OrderTracker({ orderId }: { orderId: string }) {
       </section>
 
       <Link
-        href={order.tableId ? `/table/${order.tableId}` : "/menu"}
+        href={
+          order.tableId
+            ? `/r/${restaurantSlug}/table/${order.tableId}`
+            : `/r/${restaurantSlug}/menu`
+        }
         className="mt-6 inline-block rounded-full bg-surface px-5 py-3 font-semibold transition hover:bg-brand-soft hover:text-brand"
       >
         Commander autre chose

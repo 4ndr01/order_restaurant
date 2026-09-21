@@ -1,18 +1,18 @@
 # order_restaurant
 
-Site de commande de plats pour un restaurant, pensé pour être ouvert en scannant un **QR code posé sur la table**. Le client scanne, commande depuis son téléphone, et suit la préparation en direct. La cuisine voit arriver les commandes sur un écran dédié.
+Plateforme de commande à table par QR code, ouverte à **plusieurs restaurants indépendants**. Chaque restaurateur crée son compte, obtient son propre menu et ses propres QR codes, et ne voit jamais les données des autres. Le client scanne le QR code de sa table, commande depuis son téléphone, et suit la préparation en direct. La cuisine voit arriver les commandes sur un écran dédié.
 
-Construit avec **Next.js 16** (App Router), TypeScript et Tailwind CSS. Les données (menu, tables, commandes) sont stockées dans Postgres.
+Construit avec **Next.js 16** (App Router), TypeScript et Tailwind CSS. Les données sont stockées dans Postgres, avec un cloisonnement strict entre restaurants au niveau de chaque requête.
 
 ## Démarrage
 
 ```bash
 npm install
-cp .env.example .env.local   # puis renseignez DATABASE_URL
+cp .env.example .env.local   # puis renseignez DATABASE_URL et SESSION_SECRET
 npm run dev
 ```
 
-Le site est disponible sur http://localhost:3000. Sans `DATABASE_URL`, le serveur refuse de démarrer avec un message explicite — voir [Données](#données) pour obtenir une base gratuite en quelques minutes.
+Le site est disponible sur http://localhost:3000. Sans `DATABASE_URL` ou `SESSION_SECRET`, le serveur refuse de démarrer avec un message explicite — voir [Données](#données) pour obtenir une base gratuite en quelques minutes.
 
 ## Pensé pour le mobile
 
@@ -23,76 +23,93 @@ Le client commande depuis son téléphone, debout ou attablé : toutes les pages
 - panier en feuille glissante, avec bouton de validation toujours visible en bas
 - respect des encoches et de la barre d'accueil iPhone (`viewport-fit=cover` + `env(safe-area-inset-bottom)`)
 - champs de saisie à 16 px pour éviter le zoom automatique d'iOS
-- navigation de l'espace restaurant en onglets défilants, utilisable au pouce
 
-## Les trois parcours
+## Multi-restaurants
+
+Chaque restaurant a sa propre adresse : `/r/<slug>/...`. Un restaurateur s'inscrit sur `/signup` (nom du restaurant, adresse, email, mot de passe), et obtient immédiatement un menu d'exemple modifiable, six tables, et son espace de gestion.
+
+**Le cloisonnement des données ne repose jamais sur l'URL.** Toutes les routes d'administration identifient le restaurant via la session de connexion (cookie signé), jamais via un identifiant fourni par le client — un restaurateur ne peut donc jamais agir sur les données d'un autre, même en modifiant l'adresse dans son navigateur. C'est vérifié par un test d'isolation (deux restaurants créés, commande de l'un testée injoignable par l'autre via trois angles différents : liste des commandes, accès direct par identifiant, changement de statut).
+
+## Les quatre parcours
 
 ### 1. Le client (public)
 
 | Page | Rôle |
 | --- | --- |
-| `/table/[id]` | Menu avec la table déjà sélectionnée — c'est la cible des QR codes |
-| `/menu` | Même menu, sans table (vente à emporter / comptoir) |
-| `/commande/[id]` | Suivi en direct : reçue → en préparation → prête → servie |
+| `/r/<slug>/table/[id]` | Menu avec la table déjà sélectionnée — c'est la cible des QR codes |
+| `/r/<slug>/menu` | Même menu, sans table (vente à emporter / comptoir) |
+| `/r/<slug>/commande/[id]` | Suivi en direct : reçue → en préparation → prête → servie |
 
 Le panier permet d'ajuster les quantités et d'ajouter une précision pour la cuisine (allergies, cuisson). Les prix sont recalculés côté serveur à la validation, jamais repris du navigateur.
 
-### 2. La cuisine (`/admin/cuisine`)
+### 2. La cuisine (`/r/<slug>/admin/cuisine`)
 
 Les commandes en cours s'affichent avec la table, l'heure, le détail des plats et la note du client. Un bouton fait avancer la commande d'un statut au suivant. La liste se rafraîchit toute seule toutes les 5 secondes.
 
-### 3. La gestion (`/admin`)
+### 3. La gestion (`/r/<slug>/admin`)
 
-- `/admin/menu` — ajouter/modifier/supprimer des plats et des catégories, signaler une rupture en un clic
-- `/admin/tables` — créer les tables, **générer et imprimer un QR code par table**
+- `.../menu` — ajouter/modifier/supprimer des plats et des catégories, signaler une rupture en un clic
+- `.../tables` — créer les tables, **générer et imprimer un QR code par table**
+
+### 4. L'inscription (`/signup`, `/login`)
+
+Créer un compte crée aussi le restaurant associé (nom, slug unique, menu de démarrage). La connexion se fait par email/mot de passe (mot de passe haché avec scrypt, jamais stocké en clair).
 
 ## Les QR codes
 
-Sur `/admin/tables`, chaque table affiche son QR code, généré côté serveur en PNG. Le champ « Adresse publique du site » définit l'URL encodée dans les QR codes : mettez-y le domaine réel du restaurant (par ex. `https://resto-le-comptoir.fr`) avant d'imprimer, sinon les QR pointeront vers l'adresse depuis laquelle vous consultez la page.
+Sur `.../admin/tables`, chaque table affiche son QR code, généré côté serveur en PNG, pointant vers `/r/<slug>/table/<id>`. Le champ « Adresse publique du site » définit l'URL encodée : mettez-y le domaine réel avant d'imprimer, sinon les QR pointeront vers l'adresse depuis laquelle vous consultez la page.
 
 Le bouton **Imprimer les QR codes** ouvre une mise en page épurée (2 QR codes par ligne, sans la navigation) à découper et poser sur les tables.
 
 Pour figer l'adresse une fois pour toutes, définissez `NEXT_PUBLIC_BASE_URL`.
 
-## Accès à l'espace restaurant
+## Authentification
 
-Tout ce qui est sous `/admin` et `/api/admin` est protégé par une authentification HTTP Basic (`src/proxy.ts`).
-
-Identifiants par défaut : **admin** / **restaurant**. Changez-les en production :
-
-```bash
-ADMIN_USER=chef
-ADMIN_PASSWORD=un-mot-de-passe-solide
-NEXT_PUBLIC_BASE_URL=https://resto-le-comptoir.fr
-```
+- **Restaurateurs** : compte email/mot de passe, session en cookie signé (JWT, `jose`) valable 30 jours. `src/proxy.ts` vérifie la session sur toutes les routes `/r/<slug>/admin/*` (redirection vers `/login` si absente, vers le bon restaurant si le slug de l'URL ne correspond pas à la session) et sur `/api/admin/*`.
+- **Mots de passe** : hachés avec `scrypt` (`node:crypto`, sans dépendance native) et comparés en temps constant.
+- **Identifiants** (`createId`) : tirés de `randomBytes`, 96 bits d'entropie. Important car l'identifiant d'une commande sert de jeton d'accès à sa page de suivi.
+- **Limitation de débit** (`src/lib/rate-limit.ts`, en mémoire) : 5 tentatives de connexion par minute et par IP contre la force brute ; 30 commandes par minute et par IP, volontairement large car tous les clients du wifi d'une salle partagent la même adresse — un coup de feu doit passer, seul l'abus automatisé est arrêté.
+- **Mot de passe oublié** : `/mot-de-passe-oublie` envoie un lien valable une heure (email via [Resend](https://resend.com), `RESEND_API_KEY`). Seule l'empreinte du jeton est stockée, jamais le jeton ; il est à usage unique et les autres jetons du compte sont invalidés à la réinitialisation. La réponse est identique que l'email existe ou non, pour ne pas révéler qui est inscrit.
+  - ⚠️ Avec l'expéditeur de test `onboarding@resend.dev`, Resend n'accepte d'envoyer qu'à l'adresse du titulaire du compte Resend. Pour que les restaurateurs reçoivent réellement leur lien, il faut vérifier un domaine dans Resend et mettre `EMAIL_FROM` sur une adresse de ce domaine.
+  - Les sessions déjà ouvertes ailleurs restent valides après un changement de mot de passe (jetons de session sans état, non révocables). Acceptable pour l'usage « j'ai oublié mon mot de passe » ; à revoir si un compte devait être compromis.
+- Pas encore de vérification d'email à l'inscription, ni de comptes multiples par restaurant (un seul propriétaire) — à ajouter si le besoin se présente.
 
 ## Données
 
-Toutes les données (menu, catégories, tables, commandes) vivent dans une seule table Postgres (`restaurant_state`, une ligne au format JSON), créée automatiquement et pré-remplie avec le menu d'exemple de `src/lib/seed.ts` au premier démarrage. Suffisant pour un seul établissement — pas besoin d'un schéma relationnel complexe à cette échelle.
+Schéma relationnel Postgres, chaque table rattachée à `restaurant_id` : `restaurants`, `restaurant_owners`, `categories`, `menu_items`, `restaurant_tables`, `orders`. Créé automatiquement au premier démarrage (`src/lib/db.ts`).
 
 **Obtenir une base gratuite (recommandé : [Neon](https://neon.tech))** :
 1. Créez un compte (connexion GitHub possible) et un projet.
 2. Copiez la chaîne de connexion fournie dans `DATABASE_URL` (`.env.local` en local, variable d'environnement du service en production — sur Render : *Settings → Environment*).
 
-Toute base Postgres standard fonctionne (Render Postgres, Supabase, un VPS avec Postgres installé...). Les écritures passent par une transaction avec verrou de ligne (`SELECT ... FOR UPDATE`), donc deux commandes envoyées au même instant ne s'écrasent jamais, même avec plusieurs instances du serveur.
+Toute base Postgres standard fonctionne (Render Postgres, Supabase, un VPS avec Postgres installé...).
 
-Contrairement à un fichier local, les données **survivent aux redéploiements** — c'était le principal défaut du stockage précédent.
+La numérotation des commandes (n° 001, 002...) est propre à chaque restaurant et protégée par un verrou consultatif (`pg_advisory_xact_lock`) scopé à son `restaurant_id` : deux commandes du même restaurant ne reçoivent jamais le même numéro, sans bloquer les autres restaurants entre eux. Les données survivent aux redéploiements, contrairement à un stockage sur fichier local.
 
 ## Structure
 
 ```
 src/
   app/
-    table/[id]/        menu client via QR code
-    menu/              menu client sans table
-    commande/[id]/     suivi de commande
-    admin/             cuisine, menu, tables (protégé)
+    page.tsx              page d'accueil (marketing, inscription/connexion)
+    signup/, login/        inscription et connexion
+    r/[slug]/
+      table/[id]/, menu/   menu client via QR code ou sans table
+      commande/[id]/       suivi de commande
+      admin/                cuisine, menu, tables (protégé, scopé par session)
     api/
-      orders/          commandes (public : passer, suivre)
-      admin/           menu, catégories, tables, QR, statuts (protégé)
-  components/          OrderBoard, OrderTracker, KitchenBoard, MenuManager, TablesManager
-  lib/                 db.ts (stockage Postgres), menu.ts, base-url.ts, types.ts, seed.ts
-  proxy.ts             authentification de l'espace restaurant
+      auth/                signup, login, logout
+      r/[slug]/orders/     commandes publiques (passer, suivre) — scopées par slug
+      admin/                menu, catégories, tables, QR, statuts — scopées par session
+  components/              OrderBoard, OrderTracker, KitchenBoard, MenuManager, TablesManager,
+                           SignupForm, LoginForm, LogoutButton
+  lib/
+    db.ts                  client Postgres + schéma
+    repo.ts                toutes les requêtes métier (scopées par restaurant_id)
+    auth.ts, password.ts, session.ts   comptes, hachage, cookies de session
+    seed.ts                menu de démarrage pour un nouveau restaurant
+    base-url.ts, types.ts, format.ts, client.ts, slug.ts
+  proxy.ts                 vérifie la session sur /r/[slug]/admin/* et /api/admin/*
 ```
 
 ## Scripts
