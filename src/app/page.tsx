@@ -1,9 +1,15 @@
 import Link from "next/link";
+import { BRAND_NAME } from "@/lib/brand";
 import { ANNOUNCED_PLAN, formatPlanPrice } from "@/lib/plans";
 
 export default function HomePage() {
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-6 py-16">
+    <>
+      <header className="mx-auto w-full max-w-2xl px-6 pt-8">
+        <span className="text-lg font-extrabold tracking-tight">{BRAND_NAME}</span>
+      </header>
+
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-6 py-12">
       <span className="inline-flex w-fit rounded-full bg-brand-soft px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-brand">
         Commande à table
       </span>
@@ -50,6 +56,11 @@ export default function HomePage() {
           </div>
         ))}
       </section>
-    </main>
+      </main>
+
+      <footer className="mx-auto w-full max-w-2xl px-6 pb-8 text-sm text-muted">
+        © {new Date().getFullYear()} {BRAND_NAME}
+      </footer>
+    </>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -8,10 +9,10 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Commande en ligne pour restaurants",
+  title: `${BRAND_NAME} — ${BRAND_TAGLINE}`,
   description:
     "Vos clients scannent le QR code de leur table, commandent et suivent la préparation en direct.",
-  appleWebApp: { capable: true, statusBarStyle: "default" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: BRAND_NAME },
   formatDetection: { telephone: false },
 };
 
