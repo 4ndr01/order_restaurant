@@ -42,6 +42,16 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
   }, [refresh]);
 
   async function changeStatus(orderId: string, status: OrderStatus) {
+    const target = orders.find((order) => order.id === orderId);
+    if (
+      status === "annulee" &&
+      target?.paymentStatus === "paye" &&
+      !window.confirm(
+        `Annuler la commande n° ${target.reference} et rembourser ${formatPrice(target.total)} au client ?`,
+      )
+    ) {
+      return;
+    }
     setOrders((current) =>
       current.map((order) => (order.id === orderId ? { ...order, status } : order)),
     );
@@ -138,7 +148,19 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
                 )}
 
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                  <span className="font-bold">{formatPrice(order.total)}</span>
+                  <span className="flex items-center gap-2 font-bold">
+                    {formatPrice(order.total)}
+                    {order.paymentStatus === "paye" && (
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
+                        Payée
+                      </span>
+                    )}
+                    {order.paymentStatus === "rembourse" && (
+                      <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-bold text-stone-600">
+                        Remboursée
+                      </span>
+                    )}
+                  </span>
                   <div className="flex flex-1 justify-end gap-2">
                     {OPEN_STATUSES.includes(order.status) && (
                       <button

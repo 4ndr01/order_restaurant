@@ -19,11 +19,14 @@ export default function OrderBoard({
   restaurantName,
   tableId,
   menu,
+  onlinePayment,
 }: {
   restaurantSlug: string;
   restaurantName: string;
   tableId: string | null;
   menu: PublicMenu;
+  /** Le client paie en ligne avant que la commande parte en cuisine. */
+  onlinePayment: boolean;
 }) {
   const router = useRouter();
   const [cart, setCart] = useState<Cart>({});
@@ -70,15 +73,19 @@ export default function OrderBoard({
     setSending(true);
     setSendError(null);
     try {
-      const order = await api<Order>(`/api/r/${restaurantSlug}/orders`, {
+      const order = await api<Order & { checkoutUrl?: string }>(`/api/r/${restaurantSlug}/orders`, {
         method: "POST",
         body: JSON.stringify({
           tableId: selectedTable,
           note,
-          customerEmail,
+          customerEmail: onlinePayment ? "" : customerEmail,
           lines: lines.map((line) => ({ menuItemId: line.item.id, quantity: line.quantity })),
         }),
       });
+      if (order.checkoutUrl) {
+        window.location.assign(order.checkoutUrl);
+        return;
+      }
       router.push(`/r/${restaurantSlug}/commande/${order.id}`);
     } catch (error) {
       setSendError((error as Error).message);
@@ -246,19 +253,22 @@ export default function OrderBoard({
               </label>
             )}
 
-            <label className="mt-4 block text-sm">
-              <span className="font-medium text-muted">
-                Votre email <span className="font-normal">(facultatif, pour recevoir le reçu)</span>
-              </span>
-              <input
-                type="email"
-                value={customerEmail}
-                onChange={(event) => setCustomerEmail(event.target.value)}
-                maxLength={120}
-                className="mt-1.5 w-full rounded-2xl bg-brand-soft px-3.5 py-2.5"
-                placeholder="vous@email.fr"
-              />
-            </label>
+            {/* En paiement en ligne, Stripe demande l'email et le reçu part à cette adresse. */}
+            {!onlinePayment && (
+              <label className="mt-4 block text-sm">
+                <span className="font-medium text-muted">
+                  Votre email <span className="font-normal">(facultatif, pour recevoir le reçu)</span>
+                </span>
+                <input
+                  type="email"
+                  value={customerEmail}
+                  onChange={(event) => setCustomerEmail(event.target.value)}
+                  maxLength={120}
+                  className="mt-1.5 w-full rounded-2xl bg-brand-soft px-3.5 py-2.5"
+                  placeholder="vous@email.fr"
+                />
+              </label>
+            )}
 
             <label className="mt-4 block text-sm">
               <span className="font-medium text-muted">
@@ -284,8 +294,19 @@ export default function OrderBoard({
                 disabled={sending || lines.length === 0}
                 className="card-float min-h-14 w-full rounded-full bg-brand px-5 font-semibold text-white transition hover:bg-brand-strong disabled:opacity-50"
               >
-                {sending ? "Envoi en cours…" : `Envoyer la commande · ${formatPrice(total)}`}
+                {sending
+                  ? onlinePayment
+                    ? "Ouverture du paiement…"
+                    : "Envoi en cours…"
+                  : onlinePayment
+                    ? `Payer · ${formatPrice(total)}`
+                    : `Envoyer la commande · ${formatPrice(total)}`}
               </button>
+              {onlinePayment && (
+                <p className="mt-2 text-center text-xs text-muted">
+                  Paiement sécurisé par Stripe · carte, Apple Pay, Google Pay
+                </p>
+              )}
             </div>
           </div>
         </div>

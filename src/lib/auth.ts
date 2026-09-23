@@ -116,6 +116,8 @@ export async function signup(
       name: restaurantName,
       plan: CURRENT_PLAN.id,
       priceCents: CURRENT_PLAN.priceCents,
+      stripeAccountId: null,
+      onlinePayment: false,
     },
     session,
   };
