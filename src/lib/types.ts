@@ -60,6 +60,7 @@ export type Order = {
   reference: string;
   tableId: string | null;
   tableName: string;
+  customerEmail: string | null;
   lines: OrderLine[];
   total: number;
   note: string;

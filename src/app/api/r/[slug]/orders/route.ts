@@ -1,3 +1,5 @@
+import { resolveBaseUrl } from "@/lib/base-url";
+import { sendOrderReceipt } from "@/lib/order-receipt";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { createOrder, getRestaurantBySlug } from "@/lib/repo";
 
@@ -33,9 +35,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const note = typeof body.note === "string" ? body.note.trim().slice(0, 300) : "";
   const tableId = typeof body.tableId === "string" && body.tableId ? body.tableId : null;
 
-  const result = await createOrder(restaurant.id, { tableId, note, lines });
+  const rawEmail = typeof body.customerEmail === "string" ? body.customerEmail.trim() : "";
+  if (rawEmail && (rawEmail.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail))) {
+    return Response.json({ error: "Adresse email invalide." }, { status: 400 });
+  }
+  const customerEmail = rawEmail ? rawEmail.toLowerCase() : null;
+
+  const result = await createOrder(restaurant.id, { tableId, note, lines, customerEmail });
   if ("error" in result) {
     return Response.json({ error: result.error }, { status: 400 });
   }
+
+  if (result.customerEmail) {
+    const baseUrl = resolveBaseUrl(request.headers, null, new URL(request.url).origin);
+    try {
+      await sendOrderReceipt(
+        result,
+        restaurant.name,
+        `${baseUrl}/r/${slug}/commande/${result.id}`,
+      );
+    } catch (error) {
+      // La commande est passée : un envoi d'email raté ne doit jamais la faire
+      // échouer côté client, il part simplement dans les logs.
+      console.error("Envoi du récapitulatif de commande impossible:", error);
+    }
+  }
+
   return Response.json(result, { status: 201 });
 }

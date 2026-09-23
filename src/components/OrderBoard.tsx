@@ -28,6 +28,7 @@ export default function OrderBoard({
   const router = useRouter();
   const [cart, setCart] = useState<Cart>({});
   const [note, setNote] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
   const [selectedTable, setSelectedTable] = useState<string | null>(tableId);
   const [cartOpen, setCartOpen] = useState(false);
   const [sending, setSending] = useState(false);
@@ -74,6 +75,7 @@ export default function OrderBoard({
         body: JSON.stringify({
           tableId: selectedTable,
           note,
+          customerEmail,
           lines: lines.map((line) => ({ menuItemId: line.item.id, quantity: line.quantity })),
         }),
       });
@@ -243,6 +245,20 @@ export default function OrderBoard({
                 </select>
               </label>
             )}
+
+            <label className="mt-4 block text-sm">
+              <span className="font-medium text-muted">
+                Votre email <span className="font-normal">(facultatif, pour recevoir le reçu)</span>
+              </span>
+              <input
+                type="email"
+                value={customerEmail}
+                onChange={(event) => setCustomerEmail(event.target.value)}
+                maxLength={120}
+                className="mt-1.5 w-full rounded-2xl bg-brand-soft px-3.5 py-2.5"
+                placeholder="vous@email.fr"
+              />
+            </label>
 
             <label className="mt-4 block text-sm">
               <span className="font-medium text-muted">
