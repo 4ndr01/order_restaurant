@@ -1,16 +1,17 @@
 @import "tailwindcss";
 
+/* Palette alignée sur le logo We Good Kim : vert forêt sur fond crème. */
 :root {
-  --background: #f7f5fd;
-  --surface: #ffffff;
-  --foreground: #201a2c;
-  --muted: #6f6a80;
-  --border: #ece7fa;
-  --brand: #6d28d9;
-  --brand-strong: #5b1fb8;
-  --brand-soft: #f1ebfe;
-  --accent: #16a34a;
-  --shadow-color: 261deg 45% 55%;
+  --background: #f5efe0;
+  --surface: #fffcf5;
+  --foreground: #1b2a21;
+  --muted: #65705f;
+  --border: #e7dfca;
+  --brand: #1f4d36;
+  --brand-strong: #153a28;
+  --brand-soft: #e8eddc;
+  --accent: #c8a15a;
+  --shadow-color: 150deg 30% 22%;
 }
 
 @theme inline {
