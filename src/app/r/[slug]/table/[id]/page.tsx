@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import OrderBoard from "@/components/OrderBoard";
 import { getPublicMenu, getRestaurantBySlug } from "@/lib/repo";
+import { isStripeConfigured } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export default async function TablePage({
       restaurantName={restaurant.name}
       tableId={id}
       menu={menu}
+      onlinePayment={restaurant.onlinePayment && isStripeConfigured()}
     />
   );
 }

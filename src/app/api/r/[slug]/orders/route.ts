@@ -1,7 +1,9 @@
 import { resolveBaseUrl } from "@/lib/base-url";
 import { sendOrderReceipt } from "@/lib/order-receipt";
+import { createCheckoutForOrder } from "@/lib/payments";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
-import { createOrder, getRestaurantBySlug } from "@/lib/repo";
+import { createOrder, getRestaurantBySlug, markOrderPaymentExpired } from "@/lib/repo";
+import { isStripeConfigured } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -41,13 +43,37 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   }
   const customerEmail = rawEmail ? rawEmail.toLowerCase() : null;
 
-  const result = await createOrder(restaurant.id, { tableId, note, lines, customerEmail });
+  const paymentRequired = restaurant.onlinePayment && isStripeConfigured();
+  const result = await createOrder(restaurant.id, {
+    tableId,
+    note,
+    lines,
+    customerEmail,
+    paymentRequired,
+  });
   if ("error" in result) {
     return Response.json({ error: result.error }, { status: 400 });
   }
 
+  const baseUrl = resolveBaseUrl(request.headers, null, new URL(request.url).origin);
+
+  // Paiement en ligne : la commande n'ira en cuisine qu'une fois payée, et le
+  // reçu partira à ce moment-là.
+  if (paymentRequired) {
+    try {
+      const checkoutUrl = await createCheckoutForOrder(restaurant, result, baseUrl);
+      return Response.json({ ...result, checkoutUrl }, { status: 201 });
+    } catch (error) {
+      console.error("Création de la page de paiement impossible:", error);
+      await markOrderPaymentExpired(restaurant.id, result.id);
+      return Response.json(
+        { error: "Le paiement en ligne est momentanément indisponible. Réessayez dans un instant." },
+        { status: 502 },
+      );
+    }
+  }
+
   if (result.customerEmail) {
-    const baseUrl = resolveBaseUrl(request.headers, null, new URL(request.url).origin);
     try {
       await sendOrderReceipt(
         result,

@@ -4,6 +4,10 @@ export type Restaurant = {
   name: string;
   plan: string;
   priceCents: number;
+  /** Compte Stripe relié au restaurant, null tant qu'il n'a rien activé. */
+  stripeAccountId: string | null;
+  /** Vrai quand Stripe autorise ce compte à encaisser : le client paie alors en ligne. */
+  onlinePayment: boolean;
 };
 
 export type Category = {
@@ -47,6 +51,15 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
   annulee: "Annulée",
 };
 
+/**
+ * - non_requis : restaurant sans paiement en ligne, le client règle en salle.
+ * - en_attente : le client est sur la page de paiement, la cuisine ne voit rien.
+ * - paye : Stripe a confirmé, la commande part en cuisine.
+ * - expire : le paiement n'a pas abouti à temps, la commande est abandonnée.
+ * - rembourse : la commande payée a été annulée et le client remboursé.
+ */
+export type PaymentStatus = "non_requis" | "en_attente" | "paye" | "expire" | "rembourse";
+
 export type OrderLine = {
   menuItemId: string;
   name: string;
@@ -65,6 +78,7 @@ export type Order = {
   total: number;
   note: string;
   status: OrderStatus;
+  paymentStatus: PaymentStatus;
   createdAt: string;
   updatedAt: string;
 };

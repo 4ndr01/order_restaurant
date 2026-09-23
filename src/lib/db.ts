@@ -65,6 +65,13 @@ async function migrate(): Promise<void> {
       ADD COLUMN IF NOT EXISTS plan text NOT NULL DEFAULT 'lancement',
       ADD COLUMN IF NOT EXISTS price_cents integer NOT NULL DEFAULT 0
   `;
+  // Paiement en ligne : chaque restaurant encaisse sur son propre compte
+  // Stripe, relié à la plateforme. Vide tant qu'il ne l'a pas activé.
+  await sql`
+    ALTER TABLE restaurants
+      ADD COLUMN IF NOT EXISTS stripe_account_id text UNIQUE,
+      ADD COLUMN IF NOT EXISTS stripe_charges_enabled boolean NOT NULL DEFAULT false
+  `;
   await sql`
     CREATE TABLE IF NOT EXISTS restaurant_owners (
       id text PRIMARY KEY,
@@ -129,6 +136,16 @@ async function migrate(): Promise<void> {
   // Email du client, facultatif : renseigné seulement s'il souhaite un reçu.
   await sql`
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_email text
+  `;
+  // Suivi du paiement en ligne. 'non_requis' pour les restaurants qui
+  // encaissent en salle ; une commande 'en_attente' n'est pas envoyée en
+  // cuisine tant que Stripe n'a pas confirmé le paiement.
+  await sql`
+    ALTER TABLE orders
+      ADD COLUMN IF NOT EXISTS payment_status text NOT NULL DEFAULT 'non_requis',
+      ADD COLUMN IF NOT EXISTS stripe_checkout_session_id text,
+      ADD COLUMN IF NOT EXISTS stripe_payment_intent_id text,
+      ADD COLUMN IF NOT EXISTS paid_at timestamptz
   `;
   await sql`
     CREATE INDEX IF NOT EXISTS orders_restaurant_created_idx
