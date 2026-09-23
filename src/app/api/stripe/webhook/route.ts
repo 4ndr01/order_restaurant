@@ -2,7 +2,7 @@ import type Stripe from "stripe";
 import { resolveBaseUrl } from "@/lib/base-url";
 import { applyAccountUpdate, applyCheckoutSession } from "@/lib/payments";
 import { getRestaurantById } from "@/lib/repo";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, webhookSecret } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  * réponse en erreur fait que Stripe renvoie le message plus tard.
  */
 export async function POST(request: Request) {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const secret = webhookSecret();
   if (!secret) {
     console.error("STRIPE_WEBHOOK_SECRET manquant : notification Stripe ignorée.");
     return Response.json({ error: "Webhook non configuré." }, { status: 500 });
