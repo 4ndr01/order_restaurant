@@ -2,7 +2,7 @@ import { requireSession } from "@/lib/auth";
 import { resolveBaseUrl } from "@/lib/base-url";
 import { createOnboardingLink, ensureConnectedAccount } from "@/lib/payments";
 import { getOwnerEmail, getRestaurantById } from "@/lib/repo";
-import { isStripeConfigured } from "@/lib/stripe";
+import { describeStripeError, isStripeConfigured } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -34,9 +34,6 @@ export async function POST(request: Request) {
     return Response.json({ url });
   } catch (error) {
     console.error("Ouverture de l'inscription Stripe impossible:", error);
-    return Response.json(
-      { error: "Stripe est momentanément injoignable. Réessayez dans un instant." },
-      { status: 502 },
-    );
+    return Response.json({ error: describeStripeError(error) }, { status: 502 });
   }
 }

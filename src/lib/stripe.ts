@@ -51,3 +51,33 @@ function testServerOptions(): Pick<Stripe.StripeConfig, "host" | "port" | "proto
 export function toCents(amount: number): number {
   return Math.round(amount * 100);
 }
+
+/**
+ * Traduit une erreur Stripe en message compréhensible. Seule une vraie panne
+ * réseau est présentée comme passagère : une erreur de configuration doit se
+ * voir telle quelle, sinon on la cherche au mauvais endroit.
+ */
+export function describeStripeError(error: unknown): string {
+  const type = (error as { type?: unknown })?.type;
+  switch (type) {
+    case "StripeConnectionError":
+    case "StripeAPIError":
+    case "StripeRateLimitError":
+      return "Stripe est momentanément injoignable. Réessayez dans un instant.";
+    case "StripeAuthenticationError":
+      return (
+        "La clé Stripe de la plateforme est refusée : vérifiez que STRIPE_SECRET_KEY contient " +
+        "bien la clé secrète (sk_test_… ou sk_live_…)."
+      );
+    case "StripePermissionError":
+      return (
+        "La clé Stripe de la plateforme n'a pas les droits nécessaires : utilisez la clé " +
+        "secrète complète, pas une clé restreinte."
+      );
+    case "StripeInvalidRequestError":
+    case "StripeIdempotencyError":
+      return `Stripe a refusé la demande : ${(error as Error).message}`;
+    default:
+      return "Une erreur inattendue est survenue avec Stripe. Réessayez dans un instant.";
+  }
+}
