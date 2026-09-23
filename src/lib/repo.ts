@@ -27,6 +27,7 @@ type OrderRow = {
   reference_number: number;
   table_id: string | null;
   table_name: string;
+  customer_email: string | null;
   lines: OrderLine[];
   total: string;
   note: string;
@@ -62,6 +63,7 @@ function mapOrder(row: OrderRow): Order {
     reference: String(row.reference_number).padStart(3, "0"),
     tableId: row.table_id,
     tableName: row.table_name,
+    customerEmail: row.customer_email,
     lines: row.lines,
     total: Number(row.total),
     note: row.note,
@@ -342,7 +344,12 @@ type IncomingLine = { menuItemId?: unknown; quantity?: unknown };
 
 export async function createOrder(
   restaurantId: string,
-  input: { tableId: string | null; note: string; lines: IncomingLine[] },
+  input: {
+    tableId: string | null;
+    note: string;
+    lines: IncomingLine[];
+    customerEmail?: string | null;
+  },
 ): Promise<Order | { error: string }> {
   await ensureSchema();
 
@@ -398,10 +405,11 @@ export async function createOrder(
     `;
     const inserted = await tx<OrderRow[]>`
       INSERT INTO orders (
-        id, restaurant_id, reference_number, table_id, table_name, lines, total, note, status
+        id, restaurant_id, reference_number, table_id, table_name, customer_email,
+        lines, total, note, status
       ) VALUES (
         ${id}, ${restaurantId}, ${next}, ${table?.id ?? null}, ${tableName},
-        ${tx.json(lines)}, ${total}, ${input.note}, 'recue'
+        ${input.customerEmail ?? null}, ${tx.json(lines)}, ${total}, ${input.note}, 'recue'
       )
       RETURNING *
     `;

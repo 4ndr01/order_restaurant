@@ -126,6 +126,10 @@ async function migrate(): Promise<void> {
       updated_at timestamptz NOT NULL DEFAULT now()
     )
   `;
+  // Email du client, facultatif : renseigné seulement s'il souhaite un reçu.
+  await sql`
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_email text
+  `;
   await sql`
     CREATE INDEX IF NOT EXISTS orders_restaurant_created_idx
       ON orders (restaurant_id, created_at DESC)
