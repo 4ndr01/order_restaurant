@@ -90,7 +90,7 @@ export function describeStripeError(error: unknown): string {
     case "StripePermissionError":
       return (
         "La clé Stripe de la plateforme n'a pas les droits nécessaires : utilisez la clé " +
-        "secrète complète, pas une clé restreinte."
+        `secrète (sk_…), pas une clé restreinte (rk_…). Réponse de Stripe : ${(error as Error).message}`
       );
     case "StripeInvalidRequestError":
     case "StripeIdempotencyError":
