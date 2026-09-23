@@ -13,20 +13,30 @@ import Stripe from "stripe";
 
 let client: Stripe | null = null;
 
+// Une clé collée dans l'hébergeur traîne souvent un espace ou un retour à la
+// ligne, qui rend l'en-tête HTTP invalide : on les retire systématiquement.
+function secretKey(): string {
+  return process.env.STRIPE_SECRET_KEY?.trim() ?? "";
+}
+
+export function webhookSecret(): string {
+  return process.env.STRIPE_WEBHOOK_SECRET?.trim() ?? "";
+}
+
 export function isStripeConfigured(): boolean {
-  return Boolean(process.env.STRIPE_SECRET_KEY);
+  return Boolean(secretKey());
 }
 
 export function getStripe(): Stripe {
   if (!client) {
-    const secretKey = process.env.STRIPE_SECRET_KEY;
-    if (!secretKey) {
+    const key = secretKey();
+    if (!key) {
       throw new Error(
         "STRIPE_SECRET_KEY manquant : le paiement en ligne est indisponible. Ajoutez la clé " +
           "secrète Stripe dans les variables d'environnement du service.",
       );
     }
-    client = new Stripe(secretKey, { maxNetworkRetries: 2, ...testServerOptions() });
+    client = new Stripe(key, { maxNetworkRetries: 2, ...testServerOptions() });
   }
   return client;
 }
@@ -60,7 +70,15 @@ export function toCents(amount: number): number {
 export function describeStripeError(error: unknown): string {
   const type = (error as { type?: unknown })?.type;
   switch (type) {
-    case "StripeConnectionError":
+    case "StripeConnectionError": {
+      // Le détail distingue une vraie coupure d'un problème de configuration
+      // (par exemple un caractère invalide dans la clé).
+      const detail = (error as { detail?: { message?: unknown } }).detail?.message;
+      return (
+        "Connexion à Stripe impossible. Réessayez dans un instant." +
+        (typeof detail === "string" ? ` (détail : ${detail})` : "")
+      );
+    }
     case "StripeAPIError":
     case "StripeRateLimitError":
       return "Stripe est momentanément injoignable. Réessayez dans un instant.";
