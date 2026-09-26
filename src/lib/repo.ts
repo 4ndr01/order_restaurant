@@ -605,3 +605,80 @@ export async function markOrderRefunded(
   `;
   return rows[0] ? mapOrder(rows[0]) : null;
 }
+
+// ---- Administration de la plateforme (lecture seule, tous restaurants) ----
+
+export type PlatformRestaurant = {
+  id: string;
+  slug: string;
+  name: string;
+  ownerEmail: string | null;
+  createdAt: string;
+  stripeStatus: "inactif" | "inscription" | "actif";
+  ordersToday: number;
+  orders7d: number;
+  ordersTotal: number;
+  paidOnlineTotal: number;
+  lastOrderAt: string | null;
+};
+
+type PlatformRow = {
+  id: string;
+  slug: string;
+  name: string;
+  owner_email: string | null;
+  created_at: Date;
+  stripe_account_id: string | null;
+  stripe_charges_enabled: boolean;
+  orders_today: string;
+  orders_7d: string;
+  orders_total: string;
+  paid_online_total: string;
+  last_order_at: Date | null;
+};
+
+/**
+ * Vue d'ensemble de tous les restaurants. Seules les commandes réellement
+ * passées comptent (pas celles restées sur la page de paiement), et
+ * « aujourd'hui » s'entend à l'heure de Paris.
+ */
+export async function getPlatformOverview(): Promise<PlatformRestaurant[]> {
+  await ensureSchema();
+  const rows = await sql<PlatformRow[]>`
+    SELECT
+      r.id, r.slug, r.name, r.created_at, r.stripe_account_id, r.stripe_charges_enabled,
+      (
+        SELECT ow.email FROM restaurant_owners ow
+        WHERE ow.restaurant_id = r.id ORDER BY ow.created_at ASC LIMIT 1
+      ) AS owner_email,
+      COUNT(o.id) FILTER (
+        WHERE o.created_at >= (date_trunc('day', now() AT TIME ZONE 'Europe/Paris') AT TIME ZONE 'Europe/Paris')
+      ) AS orders_today,
+      COUNT(o.id) FILTER (WHERE o.created_at >= now() - interval '7 days') AS orders_7d,
+      COUNT(o.id) AS orders_total,
+      COALESCE(SUM(o.total) FILTER (WHERE o.payment_status = 'paye'), 0) AS paid_online_total,
+      MAX(o.created_at) AS last_order_at
+    FROM restaurants r
+    LEFT JOIN orders o
+      ON o.restaurant_id = r.id AND o.payment_status NOT IN ('en_attente', 'expire')
+    GROUP BY r.id
+    ORDER BY r.created_at DESC
+  `;
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    ownerEmail: row.owner_email,
+    createdAt: row.created_at.toISOString(),
+    stripeStatus: !row.stripe_account_id
+      ? "inactif"
+      : row.stripe_charges_enabled
+        ? "actif"
+        : "inscription",
+    ordersToday: Number(row.orders_today),
+    orders7d: Number(row.orders_7d),
+    ordersTotal: Number(row.orders_total),
+    paidOnlineTotal: Number(row.paid_online_total),
+    lastOrderAt: row.last_order_at ? row.last_order_at.toISOString() : null,
+  }));
+}
