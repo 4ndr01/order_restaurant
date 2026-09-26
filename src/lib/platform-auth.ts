@@ -18,7 +18,7 @@ import { cookies } from "next/headers";
 export const PLATFORM_COOKIE = "platform_session";
 const AUDIENCE = "we-good-kim-platform-admin";
 const SESSION_HOURS = 12;
-const MIN_PASSWORD_LENGTH = 16;
+const MIN_PASSWORD_LENGTH = 13;
 
 function allowedEmails(): string[] {
   return (process.env.PLATFORM_ADMIN_EMAILS ?? "")
