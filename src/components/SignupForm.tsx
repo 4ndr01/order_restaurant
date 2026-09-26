@@ -112,6 +112,18 @@ export default function SignupForm() {
         >
           {pending ? "Création en cours…" : "Créer mon restaurant"}
         </button>
+
+        <p className="text-center text-xs text-muted">
+          En créant votre restaurant, vous acceptez les{" "}
+          <Link href="/cgu" className="underline">
+            conditions d&apos;utilisation
+          </Link>{" "}
+          et la{" "}
+          <Link href="/confidentialite" className="underline">
+            politique de confidentialité
+          </Link>
+          .
+        </p>
       </form>
 
       <p className="mt-6 text-center text-sm text-muted">

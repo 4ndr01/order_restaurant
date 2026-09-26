@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import LegalLinks from "@/components/LegalLinks";
 import { api } from "@/lib/client";
 import { formatPrice } from "@/lib/format";
 import type { Category, MenuItem, Order, RestaurantTable } from "@/lib/types";
@@ -175,6 +176,10 @@ export default function OrderBoard({
         {categories.length === 0 && (
           <p className="py-16 text-center text-muted">Le menu est en cours de préparation.</p>
         )}
+
+        <footer className="mt-12 flex justify-center">
+          <LegalLinks showCopyright={false} />
+        </footer>
       </main>
 
       {count > 0 && (
