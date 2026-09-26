@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LegalLinks from "@/components/LegalLinks";
 import { BRAND_NAME } from "@/lib/brand";
 import { ANNOUNCED_PLAN, formatPlanPrice } from "@/lib/plans";
 
@@ -58,8 +59,8 @@ export default function HomePage() {
       </section>
       </main>
 
-      <footer className="mx-auto w-full max-w-2xl px-6 pb-8 text-sm text-muted">
-        © {new Date().getFullYear()} {BRAND_NAME}
+      <footer className="mx-auto w-full max-w-2xl px-6 pb-8">
+        <LegalLinks />
       </footer>
     </>
   );
