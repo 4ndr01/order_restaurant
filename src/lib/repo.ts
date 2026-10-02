@@ -6,6 +6,7 @@ import type {
   Order,
   OrderLine,
   OrderStatus,
+  PaymentStatus,
   Restaurant,
   RestaurantTable,
 } from "./types";
@@ -27,10 +28,14 @@ type OrderRow = {
   reference_number: number;
   table_id: string | null;
   table_name: string;
+  customer_email: string | null;
   lines: OrderLine[];
   total: string;
   note: string;
   status: OrderStatus;
+  payment_status: PaymentStatus;
+  stripe_checkout_session_id: string | null;
+  stripe_payment_intent_id: string | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -62,10 +67,12 @@ function mapOrder(row: OrderRow): Order {
     reference: String(row.reference_number).padStart(3, "0"),
     tableId: row.table_id,
     tableName: row.table_name,
+    customerEmail: row.customer_email,
     lines: row.lines,
     total: Number(row.total),
     note: row.note,
     status: row.status,
+    paymentStatus: row.payment_status,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   };
@@ -77,6 +84,8 @@ type RestaurantRow = {
   name: string;
   plan: string;
   price_cents: number;
+  stripe_account_id: string | null;
+  stripe_charges_enabled: boolean;
 };
 
 function mapRestaurant(row: RestaurantRow): Restaurant {
@@ -86,13 +95,16 @@ function mapRestaurant(row: RestaurantRow): Restaurant {
     name: row.name,
     plan: row.plan,
     priceCents: row.price_cents,
+    stripeAccountId: row.stripe_account_id,
+    onlinePayment: Boolean(row.stripe_account_id) && row.stripe_charges_enabled,
   };
 }
 
 export async function getRestaurantBySlug(slug: string): Promise<Restaurant | null> {
   await ensureSchema();
   const rows = await sql<RestaurantRow[]>`
-    SELECT id, slug, name, plan, price_cents FROM restaurants WHERE slug = ${slug}
+    SELECT id, slug, name, plan, price_cents, stripe_account_id, stripe_charges_enabled
+    FROM restaurants WHERE slug = ${slug}
   `;
   return rows[0] ? mapRestaurant(rows[0]) : null;
 }
@@ -100,9 +112,18 @@ export async function getRestaurantBySlug(slug: string): Promise<Restaurant | nu
 export async function getRestaurantById(id: string): Promise<Restaurant | null> {
   await ensureSchema();
   const rows = await sql<RestaurantRow[]>`
-    SELECT id, slug, name, plan, price_cents FROM restaurants WHERE id = ${id}
+    SELECT id, slug, name, plan, price_cents, stripe_account_id, stripe_charges_enabled
+    FROM restaurants WHERE id = ${id}
   `;
   return rows[0] ? mapRestaurant(rows[0]) : null;
+}
+
+export async function getOwnerEmail(restaurantId: string, ownerId: string): Promise<string | null> {
+  await ensureSchema();
+  const [row] = await sql<{ email: string }[]>`
+    SELECT email FROM restaurant_owners WHERE id = ${ownerId} AND restaurant_id = ${restaurantId}
+  `;
+  return row?.email ?? null;
 }
 
 export async function isSlugTaken(slug: string): Promise<boolean> {
@@ -342,7 +363,14 @@ type IncomingLine = { menuItemId?: unknown; quantity?: unknown };
 
 export async function createOrder(
   restaurantId: string,
-  input: { tableId: string | null; note: string; lines: IncomingLine[] },
+  input: {
+    tableId: string | null;
+    note: string;
+    lines: IncomingLine[];
+    customerEmail?: string | null;
+    /** Vrai si le restaurant encaisse en ligne : la commande attend alors son paiement. */
+    paymentRequired?: boolean;
+  },
 ): Promise<Order | { error: string }> {
   await ensureSchema();
 
@@ -385,6 +413,11 @@ export async function createOrder(
   }
 
   const total = Math.round(lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0) * 100) / 100;
+  // Stripe refuse les paiements sous 0,50 €.
+  if (input.paymentRequired && total < 0.5) {
+    return { error: "Le paiement en ligne demande une commande d'au moins 0,50 €." };
+  }
+  const paymentStatus: PaymentStatus = input.paymentRequired ? "en_attente" : "non_requis";
   const id = createId();
   const tableName = table?.name ?? "À emporter";
 
@@ -398,10 +431,12 @@ export async function createOrder(
     `;
     const inserted = await tx<OrderRow[]>`
       INSERT INTO orders (
-        id, restaurant_id, reference_number, table_id, table_name, lines, total, note, status
+        id, restaurant_id, reference_number, table_id, table_name, customer_email,
+        lines, total, note, status, payment_status
       ) VALUES (
         ${id}, ${restaurantId}, ${next}, ${table?.id ?? null}, ${tableName},
-        ${tx.json(lines)}, ${total}, ${input.note}, 'recue'
+        ${input.customerEmail ?? null}, ${tx.json(lines)}, ${total}, ${input.note}, 'recue',
+        ${paymentStatus}
       )
       RETURNING *
     `;
@@ -424,13 +459,19 @@ export async function listOrders(
   status?: OrderStatus | null,
 ): Promise<Order[]> {
   await ensureSchema();
+  // Les commandes non payées n'existent pas pour la cuisine ni pour les
+  // statistiques : elles ne comptent qu'une fois l'argent encaissé.
   const rows = status
     ? await sql<OrderRow[]>`
-        SELECT * FROM orders WHERE restaurant_id = ${restaurantId} AND status = ${status}
+        SELECT * FROM orders
+        WHERE restaurant_id = ${restaurantId} AND status = ${status}
+          AND payment_status NOT IN ('en_attente', 'expire')
         ORDER BY created_at DESC
       `
     : await sql<OrderRow[]>`
-        SELECT * FROM orders WHERE restaurant_id = ${restaurantId} ORDER BY created_at DESC
+        SELECT * FROM orders
+        WHERE restaurant_id = ${restaurantId} AND payment_status NOT IN ('en_attente', 'expire')
+        ORDER BY created_at DESC
       `;
   return rows.map(mapOrder);
 }
@@ -444,7 +485,200 @@ export async function updateOrderStatus(
   const rows = await sql<OrderRow[]>`
     UPDATE orders SET status = ${status}, updated_at = now()
     WHERE id = ${orderId} AND restaurant_id = ${restaurantId}
+      AND payment_status NOT IN ('en_attente', 'expire', 'rembourse')
     RETURNING *
   `;
   return rows[0] ? mapOrder(rows[0]) : null;
+}
+
+// ---- Paiement en ligne (Stripe) ----
+
+/** Relie un compte Stripe au restaurant, sauf s'il en a déjà un. Renvoie le compte retenu. */
+export async function setRestaurantStripeAccount(
+  restaurantId: string,
+  accountId: string,
+): Promise<string> {
+  await ensureSchema();
+  const rows = await sql<{ stripe_account_id: string }[]>`
+    UPDATE restaurants SET stripe_account_id = ${accountId}
+    WHERE id = ${restaurantId} AND stripe_account_id IS NULL
+    RETURNING stripe_account_id
+  `;
+  if (rows[0]) {
+    return rows[0].stripe_account_id;
+  }
+  const [existing] = await sql<{ stripe_account_id: string }[]>`
+    SELECT stripe_account_id FROM restaurants WHERE id = ${restaurantId}
+  `;
+  return existing.stripe_account_id;
+}
+
+export async function setStripeChargesEnabled(accountId: string, enabled: boolean): Promise<void> {
+  await ensureSchema();
+  await sql`
+    UPDATE restaurants SET stripe_charges_enabled = ${enabled}
+    WHERE stripe_account_id = ${accountId}
+  `;
+}
+
+export async function getOrderCheckoutSessionId(
+  restaurantId: string,
+  orderId: string,
+): Promise<string | null> {
+  await ensureSchema();
+  const [row] = await sql<{ stripe_checkout_session_id: string | null }[]>`
+    SELECT stripe_checkout_session_id FROM orders
+    WHERE id = ${orderId} AND restaurant_id = ${restaurantId}
+  `;
+  return row?.stripe_checkout_session_id ?? null;
+}
+
+export async function getOrderPaymentIntentId(
+  restaurantId: string,
+  orderId: string,
+): Promise<string | null> {
+  await ensureSchema();
+  const [row] = await sql<{ stripe_payment_intent_id: string | null }[]>`
+    SELECT stripe_payment_intent_id FROM orders
+    WHERE id = ${orderId} AND restaurant_id = ${restaurantId}
+  `;
+  return row?.stripe_payment_intent_id ?? null;
+}
+
+export async function attachCheckoutSession(
+  restaurantId: string,
+  orderId: string,
+  sessionId: string,
+): Promise<void> {
+  await ensureSchema();
+  await sql`
+    UPDATE orders SET stripe_checkout_session_id = ${sessionId}
+    WHERE id = ${orderId} AND restaurant_id = ${restaurantId}
+  `;
+}
+
+/**
+ * Passe la commande en « payée ». Ne renvoie la commande qu'à la première
+ * confirmation : le webhook et le retour du client peuvent arriver en même
+ * temps, et un seul des deux doit déclencher l'email de reçu.
+ */
+export async function markOrderPaid(
+  restaurantId: string,
+  orderId: string,
+  payment: { paymentIntentId: string | null; customerEmail: string | null },
+): Promise<Order | null> {
+  await ensureSchema();
+  const rows = await sql<OrderRow[]>`
+    UPDATE orders SET
+      payment_status = 'paye',
+      stripe_payment_intent_id = ${payment.paymentIntentId},
+      customer_email = COALESCE(customer_email, ${payment.customerEmail}),
+      paid_at = now(),
+      updated_at = now()
+    WHERE id = ${orderId} AND restaurant_id = ${restaurantId} AND payment_status = 'en_attente'
+    RETURNING *
+  `;
+  return rows[0] ? mapOrder(rows[0]) : null;
+}
+
+/** Abandonne une commande dont le paiement n'a pas abouti. */
+export async function markOrderPaymentExpired(
+  restaurantId: string,
+  orderId: string,
+): Promise<void> {
+  await ensureSchema();
+  await sql`
+    UPDATE orders SET payment_status = 'expire', status = 'annulee', updated_at = now()
+    WHERE id = ${orderId} AND restaurant_id = ${restaurantId} AND payment_status = 'en_attente'
+  `;
+}
+
+export async function markOrderRefunded(
+  restaurantId: string,
+  orderId: string,
+): Promise<Order | null> {
+  await ensureSchema();
+  const rows = await sql<OrderRow[]>`
+    UPDATE orders SET payment_status = 'rembourse', status = 'annulee', updated_at = now()
+    WHERE id = ${orderId} AND restaurant_id = ${restaurantId} AND payment_status = 'paye'
+    RETURNING *
+  `;
+  return rows[0] ? mapOrder(rows[0]) : null;
+}
+
+// ---- Administration de la plateforme (lecture seule, tous restaurants) ----
+
+export type PlatformRestaurant = {
+  id: string;
+  slug: string;
+  name: string;
+  ownerEmail: string | null;
+  createdAt: string;
+  stripeStatus: "inactif" | "inscription" | "actif";
+  ordersToday: number;
+  orders7d: number;
+  ordersTotal: number;
+  paidOnlineTotal: number;
+  lastOrderAt: string | null;
+};
+
+type PlatformRow = {
+  id: string;
+  slug: string;
+  name: string;
+  owner_email: string | null;
+  created_at: Date;
+  stripe_account_id: string | null;
+  stripe_charges_enabled: boolean;
+  orders_today: string;
+  orders_7d: string;
+  orders_total: string;
+  paid_online_total: string;
+  last_order_at: Date | null;
+};
+
+/**
+ * Vue d'ensemble de tous les restaurants. Seules les commandes réellement
+ * passées comptent (pas celles restées sur la page de paiement), et
+ * « aujourd'hui » s'entend à l'heure de Paris.
+ */
+export async function getPlatformOverview(): Promise<PlatformRestaurant[]> {
+  await ensureSchema();
+  const rows = await sql<PlatformRow[]>`
+    SELECT
+      r.id, r.slug, r.name, r.created_at, r.stripe_account_id, r.stripe_charges_enabled,
+      (
+        SELECT ow.email FROM restaurant_owners ow
+        WHERE ow.restaurant_id = r.id ORDER BY ow.created_at ASC LIMIT 1
+      ) AS owner_email,
+      COUNT(o.id) FILTER (
+        WHERE o.created_at >= (date_trunc('day', now() AT TIME ZONE 'Europe/Paris') AT TIME ZONE 'Europe/Paris')
+      ) AS orders_today,
+      COUNT(o.id) FILTER (WHERE o.created_at >= now() - interval '7 days') AS orders_7d,
+      COUNT(o.id) AS orders_total,
+      COALESCE(SUM(o.total) FILTER (WHERE o.payment_status = 'paye'), 0) AS paid_online_total,
+      MAX(o.created_at) AS last_order_at
+    FROM restaurants r
+    LEFT JOIN orders o
+      ON o.restaurant_id = r.id AND o.payment_status NOT IN ('en_attente', 'expire')
+    GROUP BY r.id
+    ORDER BY r.created_at DESC
+  `;
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    ownerEmail: row.owner_email,
+    createdAt: row.created_at.toISOString(),
+    stripeStatus: !row.stripe_account_id
+      ? "inactif"
+      : row.stripe_charges_enabled
+        ? "actif"
+        : "inscription",
+    ordersToday: Number(row.orders_today),
+    orders7d: Number(row.orders_7d),
+    ordersTotal: Number(row.orders_total),
+    paidOnlineTotal: Number(row.paid_online_total),
+    lastOrderAt: row.last_order_at ? row.last_order_at.toISOString() : null,
+  }));
 }
