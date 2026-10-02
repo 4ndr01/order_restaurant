@@ -19,7 +19,14 @@ function getClient(): postgres.Sql {
     // "prefer" utilise le chiffrement quand le serveur le propose (Neon
     // l'impose de toute façon) et retombe sur une connexion en clair pour un
     // Postgres local sans TLS configuré (développement).
-    client = postgres(connectionString, { ssl: "prefer", max: 5 });
+    //
+    // prepare: false — pas de requêtes préparées nommées. Le pooler de Neon
+    // les partage entre connexions en les reconnaissant à leur texte : après
+    // un ajout de colonne, il resservait une version préparée avant la
+    // migration et Postgres refusait de l'exécuter (« cached plan must not
+    // change result type », code 0A000), même après un redémarrage du site.
+    // Les paramètres restent envoyés séparément du texte SQL.
+    client = postgres(connectionString, { ssl: "prefer", max: 5, prepare: false });
   }
   return client;
 }
