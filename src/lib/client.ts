@@ -3,7 +3,10 @@ export async function api<T>(url: string, init: RequestInit = {}): Promise<T> {
     cache: "no-store",
     ...init,
     headers: {
-      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      // Un envoi de fichier (FormData) fixe lui-même son type et sa délimitation.
+      ...(init.body && !(init.body instanceof FormData)
+        ? { "Content-Type": "application/json" }
+        : {}),
       ...init.headers,
     },
   });
