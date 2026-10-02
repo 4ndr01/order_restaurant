@@ -25,6 +25,8 @@ export type MenuItem = {
   description: string;
   price: number;
   available: boolean;
+  /** Adresse de la photo du plat, null s'il n'en a pas. */
+  photoUrl: string | null;
 };
 
 export type RestaurantTable = {

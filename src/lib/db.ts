@@ -111,6 +111,21 @@ async function migrate(): Promise<void> {
       available boolean NOT NULL DEFAULT true
     )
   `;
+  // Photo facultative du plat. Le fichier vit dans une table à part pour que
+  // la lecture du menu ne charge jamais les images ; photo_updated_at sert de
+  // numéro de version dans l'adresse de l'image (cache navigateur sûr).
+  await sql`
+    ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS photo_updated_at timestamptz
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS menu_item_photos (
+      menu_item_id text PRIMARY KEY REFERENCES menu_items(id) ON DELETE CASCADE,
+      restaurant_id text NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+      data bytea NOT NULL,
+      content_type text NOT NULL,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `;
   await sql`
     CREATE TABLE IF NOT EXISTS restaurant_tables (
       id text PRIMARY KEY,

@@ -35,6 +35,7 @@ export default function OrderBoard({
   const [customerEmail, setCustomerEmail] = useState("");
   const [selectedTable, setSelectedTable] = useState<string | null>(tableId);
   const [cartOpen, setCartOpen] = useState(false);
+  const [zoomed, setZoomed] = useState<MenuItem | null>(null);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
 
@@ -141,31 +142,55 @@ export default function OrderBoard({
                   return (
                     <li
                       key={item.id}
-                      className="card-float-sm flex items-start justify-between gap-4 rounded-3xl bg-surface p-4"
+                      className="card-float-sm flex items-start gap-4 rounded-3xl bg-surface p-4"
                     >
-                      <div className="min-w-0">
+                      {item.photoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setZoomed(item)}
+                          aria-label={`Voir la photo : ${item.name}`}
+                          className="shrink-0 overflow-hidden rounded-2xl"
+                        >
+                          {/* Image déjà compressée par le serveur. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={item.photoUrl}
+                            alt=""
+                            width={88}
+                            height={88}
+                            loading="lazy"
+                            decoding="async"
+                            className="h-22 w-22 bg-brand-soft object-cover"
+                          />
+                        </button>
+                      )}
+                      <div className="min-w-0 flex-1">
                         <p className="font-semibold">{item.name}</p>
                         {item.description && (
                           <p className="mt-1 text-sm text-muted">{item.description}</p>
                         )}
-                        <p className="mt-2 inline-flex rounded-full bg-brand-soft px-2.5 py-1 text-sm font-semibold text-brand">
-                          {formatPrice(item.price)}
-                        </p>
+                        {/* Prix et bouton sur la même ligne : le texte garde toute la
+                            largeur, même à côté d'une photo. */}
+                        <div className="mt-2 flex items-center justify-between gap-3">
+                          <p className="inline-flex rounded-full bg-brand-soft px-2.5 py-1 text-sm font-semibold text-brand">
+                            {formatPrice(item.price)}
+                          </p>
+                          {quantity === 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setQuantity(item.id, 1)}
+                              className="card-float-sm min-h-11 shrink-0 rounded-full bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-strong"
+                            >
+                              Ajouter
+                            </button>
+                          ) : (
+                            <QuantityStepper
+                              quantity={quantity}
+                              onChange={(next) => setQuantity(item.id, next)}
+                            />
+                          )}
+                        </div>
                       </div>
-                      {quantity === 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => setQuantity(item.id, 1)}
-                          className="card-float-sm min-h-11 shrink-0 rounded-full bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-strong"
-                        >
-                          Ajouter
-                        </button>
-                      ) : (
-                        <QuantityStepper
-                          quantity={quantity}
-                          onChange={(next) => setQuantity(item.id, next)}
-                        />
-                      )}
                     </li>
                   );
                 })}
@@ -194,6 +219,55 @@ export default function OrderBoard({
             </span>
             <span className="font-semibold">{formatPrice(total)}</span>
           </button>
+        </div>
+      )}
+
+      {zoomed?.photoUrl && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <button
+            type="button"
+            aria-label="Fermer la photo"
+            onClick={() => setZoomed(null)}
+            className="absolute inset-0 bg-black/60"
+          />
+          <div className="relative w-full max-w-lg overflow-hidden rounded-t-3xl bg-surface shadow-2xl sm:rounded-3xl">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={zoomed.photoUrl}
+              alt={zoomed.name}
+              className="aspect-square w-full bg-brand-soft object-cover"
+            />
+            <div className="safe-bottom px-5 pt-4">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-lg font-extrabold tracking-tight">{zoomed.name}</p>
+                <span className="shrink-0 font-semibold text-brand">
+                  {formatPrice(zoomed.price)}
+                </span>
+              </div>
+              {zoomed.description && (
+                <p className="mt-1 text-sm text-muted">{zoomed.description}</p>
+              )}
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuantity(zoomed.id, (cart[zoomed.id] ?? 0) + 1);
+                    setZoomed(null);
+                  }}
+                  className="card-float-sm min-h-12 flex-1 rounded-full bg-brand px-5 font-semibold text-white transition hover:bg-brand-strong"
+                >
+                  Ajouter
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoomed(null)}
+                  className="min-h-12 rounded-full bg-brand-soft px-5 font-medium text-brand"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

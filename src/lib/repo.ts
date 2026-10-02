@@ -20,6 +20,7 @@ type MenuItemRow = {
   description: string;
   price: string;
   available: boolean;
+  photo_updated_at: Date | null;
 };
 type TableRow = { id: string; restaurant_id: string; name: string };
 type OrderRow = {
@@ -53,7 +54,12 @@ function mapMenuItem(row: MenuItemRow): MenuItem {
     description: row.description,
     price: Number(row.price),
     available: row.available,
+    photoUrl: photoUrl(row.id, row.photo_updated_at),
   };
+}
+
+function photoUrl(itemId: string, updatedAt: Date | null): string | null {
+  return updatedAt ? `/api/photos/${encodeURIComponent(itemId)}?v=${updatedAt.getTime()}` : null;
 }
 
 function mapTable(row: TableRow): RestaurantTable {
@@ -242,6 +248,7 @@ export async function createMenuItem(
     description: data.description.slice(0, 200),
     price: Math.round(data.price * 100) / 100,
     available: data.available,
+    photoUrl: null,
   };
 }
 
@@ -296,7 +303,71 @@ export async function updateMenuItem(
     WHERE id = ${itemId} AND restaurant_id = ${restaurantId}
   `;
 
-  return { id: itemId, restaurantId, ...next };
+  return {
+    id: itemId,
+    restaurantId,
+    ...next,
+    photoUrl: photoUrl(itemId, existing.photo_updated_at),
+  };
+}
+
+// ---- Photos des plats ----
+
+/** Enregistre (ou remplace) la photo d'un plat de ce restaurant. */
+export async function setMenuItemPhoto(
+  restaurantId: string,
+  itemId: string,
+  photo: { data: Buffer; contentType: string },
+): Promise<MenuItem | null> {
+  await ensureSchema();
+  const rows = await sql.begin<MenuItemRow[]>(async (tx) => {
+    const updated = await tx<MenuItemRow[]>`
+      UPDATE menu_items SET photo_updated_at = clock_timestamp()
+      WHERE id = ${itemId} AND restaurant_id = ${restaurantId}
+      RETURNING *
+    `;
+    if (!updated[0]) {
+      return [] as MenuItemRow[];
+    }
+    await tx`
+      INSERT INTO menu_item_photos (menu_item_id, restaurant_id, data, content_type, updated_at)
+      VALUES (${itemId}, ${restaurantId}, ${photo.data}, ${photo.contentType}, now())
+      ON CONFLICT (menu_item_id) DO UPDATE SET
+        data = EXCLUDED.data, content_type = EXCLUDED.content_type, updated_at = now()
+    `;
+    return updated;
+  });
+  return rows[0] ? mapMenuItem(rows[0]) : null;
+}
+
+export async function deleteMenuItemPhoto(
+  restaurantId: string,
+  itemId: string,
+): Promise<MenuItem | null> {
+  await ensureSchema();
+  const rows = await sql.begin<MenuItemRow[]>(async (tx) => {
+    await tx`
+      DELETE FROM menu_item_photos
+      WHERE menu_item_id = ${itemId} AND restaurant_id = ${restaurantId}
+    `;
+    return tx<MenuItemRow[]>`
+      UPDATE menu_items SET photo_updated_at = NULL
+      WHERE id = ${itemId} AND restaurant_id = ${restaurantId}
+      RETURNING *
+    `;
+  });
+  return rows[0] ? mapMenuItem(rows[0]) : null;
+}
+
+/** Lecture publique d'une photo : les menus sont publics, les photos aussi. */
+export async function getMenuItemPhoto(
+  itemId: string,
+): Promise<{ data: Buffer; contentType: string } | null> {
+  await ensureSchema();
+  const [row] = await sql<{ data: Buffer; content_type: string }[]>`
+    SELECT data, content_type FROM menu_item_photos WHERE menu_item_id = ${itemId}
+  `;
+  return row ? { data: row.data, contentType: row.content_type } : null;
 }
 
 export async function deleteMenuItem(restaurantId: string, itemId: string): Promise<boolean> {

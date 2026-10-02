@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { api } from "@/lib/client";
 import { formatPrice } from "@/lib/format";
+import { shrinkPhoto } from "@/lib/image-client";
 import type { Category, MenuItem } from "@/lib/types";
 
 export type MenuPayload = {
@@ -18,6 +19,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
   const [newCategory, setNewCategory] = useState("");
   const [newItem, setNewItem] = useState(EMPTY_ITEM);
   const [editing, setEditing] = useState<MenuItem | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const payload = await api<MenuPayload>("/api/admin/menu");
@@ -32,6 +34,16 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
     } catch (cause) {
       setError((cause as Error).message);
     }
+  }
+
+  async function uploadPhoto(itemId: string, file: File) {
+    setUploadingId(itemId);
+    await run(async () => {
+      const form = new FormData();
+      form.append("photo", await shrinkPhoto(file), "photo.jpg");
+      await api(`/api/admin/menu/${itemId}/photo`, { method: "POST", body: form });
+    });
+    setUploadingId(null);
   }
 
   const targetCategoryId = newItem.categoryId || data.categories[0]?.id || "";
@@ -238,8 +250,21 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                       </li>
                     ) : (
                       <li key={item.id} className="card-float-sm rounded-3xl bg-surface p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
+                        <div className="flex items-start gap-3">
+                          {item.photoUrl && (
+                            // Image déjà compressée par le serveur : pas besoin du
+                            // composant d'optimisation de Next.js.
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={item.photoUrl}
+                              alt=""
+                              width={64}
+                              height={64}
+                              loading="lazy"
+                              className="h-16 w-16 shrink-0 rounded-2xl object-cover"
+                            />
+                          )}
+                          <div className="min-w-0 flex-1">
                             <p className={`font-semibold ${item.available ? "" : "text-muted"}`}>
                               {item.name}
                               {!item.available && " · en rupture"}
@@ -266,6 +291,41 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                           >
                             {item.available ? "Mettre en rupture" : "Remettre au menu"}
                           </button>
+                          <label
+                            className={`flex min-h-11 cursor-pointer items-center rounded-full px-4 text-sm font-semibold text-brand hover:bg-brand-soft ${
+                              uploadingId === item.id ? "pointer-events-none opacity-50" : ""
+                            }`}
+                          >
+                            {uploadingId === item.id
+                              ? "Envoi de la photo…"
+                              : item.photoUrl
+                                ? "Changer la photo"
+                                : "Ajouter une photo"}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="sr-only"
+                              disabled={uploadingId !== null}
+                              onChange={(event) => {
+                                const file = event.target.files?.[0];
+                                event.target.value = "";
+                                if (file) uploadPhoto(item.id, file);
+                              }}
+                            />
+                          </label>
+                          {item.photoUrl && uploadingId !== item.id && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                run(() =>
+                                  api(`/api/admin/menu/${item.id}/photo`, { method: "DELETE" }),
+                                )
+                              }
+                              className="min-h-11 rounded-full px-4 text-sm font-medium text-muted hover:bg-red-50 hover:text-red-600"
+                            >
+                              Retirer la photo
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => setEditing(item)}
