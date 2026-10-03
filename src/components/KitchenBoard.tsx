@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { formatPrice, formatTime, minutesSince } from "@/lib/format";
 import { STATUS_LABELS, type Order, type OrderStatus } from "@/lib/types";
@@ -10,6 +10,8 @@ const NEXT_STATUS: Partial<Record<OrderStatus, { status: OrderStatus; label: str
   en_preparation: { status: "prete", label: "Marquer prête" },
   prete: { status: "servie", label: "Marquer servie" },
 };
+
+const FRESH_HIGHLIGHT_MS = 2400;
 
 const OPEN_STATUSES: OrderStatus[] = ["recue", "en_preparation", "prete"];
 
@@ -25,10 +27,28 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [showArchive, setShowArchive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Commandes arrivées depuis l'ouverture de l'écran : surlignées quelques
+  // secondes pour que la cuisine les repère tout de suite.
+  const knownIds = useRef(new Set(initialOrders.map((order) => order.id)));
+  const [freshIds, setFreshIds] = useState<Set<string>>(() => new Set());
 
   const refresh = useCallback(async () => {
     try {
       const data = await api<{ orders: Order[] }>("/api/admin/orders");
+      const arrived = data.orders
+        .map((order) => order.id)
+        .filter((id) => !knownIds.current.has(id));
+      if (arrived.length > 0) {
+        arrived.forEach((id) => knownIds.current.add(id));
+        setFreshIds((current) => new Set([...current, ...arrived]));
+        setTimeout(() => {
+          setFreshIds((current) => {
+            const next = new Set(current);
+            arrived.forEach((id) => next.delete(id));
+            return next;
+          });
+        }, FRESH_HIGHLIGHT_MS);
+      }
       setOrders(data.orders);
       setError(null);
     } catch (cause) {
@@ -110,7 +130,12 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
           {visible.map((order) => {
             const next = NEXT_STATUS[order.status];
             return (
-              <li key={order.id} className="card-float-sm rounded-3xl bg-surface p-5">
+              <li
+                key={order.id}
+                className={`card-float-sm rounded-3xl bg-surface p-5 ${
+                  freshIds.has(order.id) ? "animate-new-order" : ""
+                }`}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-lg font-bold">

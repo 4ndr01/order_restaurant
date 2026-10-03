@@ -208,16 +208,22 @@ export default function OrderBoard({
       </main>
 
       {count > 0 && (
-        <div className="safe-bottom print-hidden fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-background via-background/95 px-5 pt-6 backdrop-blur">
+        <div className="safe-bottom print-hidden fixed inset-x-0 bottom-0 z-30 animate-slide-up bg-gradient-to-t from-background via-background/95 px-5 pt-6 backdrop-blur">
           <button
             type="button"
             onClick={() => setCartOpen(true)}
             className="card-float mx-auto flex min-h-14 w-full max-w-2xl items-center justify-between rounded-full bg-brand px-6 text-white transition hover:bg-brand-strong"
           >
             <span className="font-medium">
-              Voir ma commande · {count} article{count > 1 ? "s" : ""}
+              Voir ma commande ·{" "}
+              <span key={count} className="inline-block animate-pop">
+                {count}
+              </span>{" "}
+              article{count > 1 ? "s" : ""}
             </span>
-            <span className="font-semibold">{formatPrice(total)}</span>
+            <span key={total} className="inline-block animate-pop font-semibold">
+              {formatPrice(total)}
+            </span>
           </button>
         </div>
       )}
@@ -228,9 +234,9 @@ export default function OrderBoard({
             type="button"
             aria-label="Fermer la photo"
             onClick={() => setZoomed(null)}
-            className="absolute inset-0 bg-black/60"
+            className="absolute inset-0 animate-fade-in bg-black/60"
           />
-          <div className="relative w-full max-w-lg overflow-hidden rounded-t-3xl bg-surface shadow-2xl sm:rounded-3xl">
+          <div className="relative w-full max-w-lg animate-slide-up overflow-hidden rounded-t-3xl bg-surface shadow-2xl sm:rounded-3xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={zoomed.photoUrl}
@@ -277,9 +283,9 @@ export default function OrderBoard({
             type="button"
             aria-label="Fermer la commande"
             onClick={() => setCartOpen(false)}
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 animate-fade-in bg-black/40"
           />
-          <div className="relative flex max-h-[92dvh] w-full max-w-lg flex-col rounded-t-3xl bg-surface shadow-2xl sm:rounded-3xl">
+          <div className="relative flex max-h-[92dvh] w-full max-w-lg animate-slide-up flex-col rounded-t-3xl bg-surface shadow-2xl sm:rounded-3xl">
             <div className="flex items-center justify-between px-5 py-4">
               <h2 className="text-lg font-extrabold tracking-tight">Votre commande</h2>
               <button
@@ -311,7 +317,9 @@ export default function OrderBoard({
 
             <div className="mt-5 flex items-center justify-between rounded-2xl bg-brand-soft px-4 py-3.5 text-lg font-extrabold text-brand">
               <span>Total</span>
-              <span>{formatPrice(total)}</span>
+              <span key={total} className="inline-block animate-pop">
+                {formatPrice(total)}
+              </span>
             </div>
 
             {(!knownTable || tableUnknown) && (
@@ -411,7 +419,9 @@ function QuantityStepper({
       >
         −
       </button>
-      <span className="w-5 text-center font-bold text-brand">{quantity}</span>
+      <span key={quantity} className="w-5 animate-pop text-center font-bold text-brand">
+        {quantity}
+      </span>
       <button
         type="button"
         aria-label="Ajouter un article"

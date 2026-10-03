@@ -152,18 +152,28 @@ export default function OrderTracker({
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand">
         Commande n° {order.reference} · {formatTime(order.createdAt)}
       </p>
-      <h1 className="mt-2 text-3xl font-extrabold tracking-tight">{STATUS_LABELS[order.status]}</h1>
+      <h1 key={order.status} className="mt-2 animate-fade-in text-3xl font-extrabold tracking-tight">
+        {STATUS_LABELS[order.status]}
+      </h1>
       <p className="mt-2 text-muted">{hint}</p>
 
       {order.status !== "annulee" && (
         <ol className="card-float-sm mt-8 space-y-3 rounded-3xl bg-surface p-5">
           {TIMELINE.map((step, index) => {
             const done = index <= currentStep;
+            // Pulsation discrète tant que la commande attend d'être servie.
+            const ready = done && index === currentStep && order.status === "prete";
             return (
               <li key={step} className="flex items-center gap-3">
                 <span
+                  // La clé change quand l'étape s'allume : l'animation se joue
+                  // à ce moment-là, en cascade au premier affichage.
+                  key={done ? "fait" : "a-venir"}
+                  style={done ? { animationDelay: `${index * 70}ms` } : undefined}
                   className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                    done ? "bg-brand text-white" : "bg-brand-soft text-muted"
+                    done
+                      ? `${ready ? "animate-ready-ring" : "animate-step-in"} bg-brand text-white`
+                      : "bg-brand-soft text-muted"
                   }`}
                 >
                   {index + 1}
