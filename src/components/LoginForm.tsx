@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/client";
 
 export default function LoginForm() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -21,8 +19,10 @@ export default function LoginForm() {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      router.push(`/r/${result.slug}/admin`);
-      router.refresh();
+      // Rechargement complet : la mesure d'audience des pages publiques ne
+      // suit pas le restaurateur dans son espace.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- rechargement voulu, voir ci-dessus
+      window.location.assign(`/r/${result.slug}/admin`);
     } catch (cause) {
       setError((cause as Error).message);
       setPending(false);

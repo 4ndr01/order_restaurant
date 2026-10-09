@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { formatPrice } from "@/lib/format";
-import { getRestaurantById, listMenuItems, listOrders } from "@/lib/repo";
+import { getMenuViewStats, getRestaurantById, listMenuItems, listOrders } from "@/lib/repo";
 
 export const dynamic = "force-dynamic";
 
@@ -10,10 +10,11 @@ export default async function AdminHomePage({ params }: { params: Promise<{ slug
   const session = await getSession();
   if (!session) return null; // garanti par proxy.ts, ceinture et bretelles
 
-  const [restaurant, orders, menuItems] = await Promise.all([
+  const [restaurant, orders, menuItems, views] = await Promise.all([
     getRestaurantById(session.restaurantId),
     listOrders(session.restaurantId),
     listMenuItems(session.restaurantId),
+    getMenuViewStats(session.restaurantId),
   ]);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -25,10 +26,20 @@ export default async function AdminHomePage({ params }: { params: Promise<{ slug
     .filter((order) => order.status !== "annulee")
     .reduce((sum, order) => sum + order.total, 0);
 
-  const stats = [
+  const stats: { label: string; value: string; hint?: string }[] = [
     { label: "Commandes du jour", value: String(todayOrders.length) },
     { label: "En cours en cuisine", value: String(active.length) },
     { label: "Chiffre d'affaires du jour", value: formatPrice(revenue) },
+    {
+      label: "Menu ouvert aujourd'hui",
+      value: String(views.today),
+      hint: `dont ${views.todayFromQr} par QR code`,
+    },
+    {
+      label: "Menu ouvert sur 7 jours",
+      value: String(views.last7Days),
+      hint: "Une même personne compte une fois par demi-heure",
+    },
     { label: "Plats au menu", value: String(menuItems.filter((item) => item.available).length) },
   ];
 
@@ -39,11 +50,12 @@ export default async function AdminHomePage({ params }: { params: Promise<{ slug
       <h1 className="text-2xl font-extrabold tracking-tight">{restaurant?.name}</h1>
       <p className="mt-1 text-muted">Vue d&apos;ensemble du service.</p>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat) => (
           <div key={stat.label} className="card-float-sm rounded-3xl bg-surface p-4">
             <p className="text-sm text-muted">{stat.label}</p>
             <p className="mt-2 text-2xl font-extrabold text-brand">{stat.value}</p>
+            {stat.hint && <p className="mt-1 text-xs text-muted">{stat.hint}</p>}
           </div>
         ))}
       </div>

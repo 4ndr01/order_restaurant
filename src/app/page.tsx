@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Analytics from "@/components/Analytics";
 import LegalLinks from "@/components/LegalLinks";
 import { BRAND_NAME } from "@/lib/brand";
 import { ANNOUNCED_PLAN, formatPlanPrice } from "@/lib/plans";
@@ -6,6 +7,7 @@ import { ANNOUNCED_PLAN, formatPlanPrice } from "@/lib/plans";
 export default function HomePage() {
   return (
     <>
+      <Analytics />
       <header className="mx-auto w-full max-w-2xl px-6 pt-8">
         <span className="text-lg font-extrabold tracking-tight">{BRAND_NAME}</span>
       </header>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import LegalLinks from "@/components/LegalLinks";
 import { api } from "@/lib/client";
 import { formatPrice } from "@/lib/format";
@@ -29,7 +28,6 @@ export default function OrderBoard({
   /** Le client paie en ligne avant que la commande parte en cuisine. */
   onlinePayment: boolean;
 }) {
-  const router = useRouter();
   const [cart, setCart] = useState<Cart>({});
   const [note, setNote] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -88,7 +86,10 @@ export default function OrderBoard({
         window.location.assign(order.checkoutUrl);
         return;
       }
-      router.push(`/r/${restaurantSlug}/commande/${order.id}`);
+      // Rechargement complet : l'adresse du suivi est un lien secret, la
+      // mesure d'audience chargée sur le menu ne doit pas la voir.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- rechargement voulu, voir ci-dessus
+      window.location.assign(`/r/${restaurantSlug}/commande/${order.id}`);
     } catch (error) {
       setSendError((error as Error).message);
       setSending(false);

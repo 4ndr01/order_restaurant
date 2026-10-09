@@ -10,6 +10,7 @@ const PROCESSORS = [
   { name: "Neon", role: "Hébergement de la base de données", location: "Selon la région choisie" },
   { name: "Resend", role: "Envoi des emails (reçus, mot de passe oublié)", location: "États-Unis" },
   { name: "Stripe", role: "Paiement en ligne, pour les restaurants qui l'activent", location: "Union européenne et États-Unis" },
+  { name: "Umami", role: "Mesure d'audience anonyme des pages publiques, sans cookie", location: "Selon la région du compte Umami" },
 ];
 
 export default function PrivacyPage() {
@@ -46,9 +47,9 @@ export default function PrivacyPage() {
         </p>
         <p>
           <strong>Sécurité :</strong> votre adresse IP est utilisée pour bloquer les abus (trop de
-          tentatives de connexion ou de commandes). Elle n&apos;est pas enregistrée dans notre
-          base de données ; les journaux techniques de notre hébergeur peuvent la conserver
-          temporairement.
+          tentatives de connexion ou de commandes) et pour ne compter qu&apos;une fois une même
+          ouverture du menu. Elle n&apos;est pas enregistrée dans notre base de données ; les
+          journaux techniques de notre hébergeur peuvent la conserver temporairement.
         </p>
       </Section>
 
@@ -58,6 +59,22 @@ export default function PrivacyPage() {
           connecté à son espace pendant 30 jours au plus. Il n&apos;y a aucun cookie publicitaire
           ni de mesure d&apos;audience, c&apos;est pourquoi aucun bandeau de consentement ne vous
           est demandé. Commander dans un restaurant ne dépose aucun cookie.
+        </p>
+      </Section>
+
+      <Section title="Mesure d'audience">
+        <p>
+          Pour savoir combien de personnes visitent le site, nous utilisons Umami, un outil de
+          statistiques qui ne dépose aucun cookie et ne suit pas les visiteurs d&apos;un site à
+          l&apos;autre. Il ne nous donne que des chiffres d&apos;ensemble : pages vues, site
+          d&apos;origine, type d&apos;appareil et pays. Il n&apos;est présent que sur les pages
+          publiques (accueil, inscription, connexion, pages légales et menus des restaurants),
+          jamais sur le suivi d&apos;une commande ni dans l&apos;espace des restaurateurs. Si votre
+          navigateur demande à ne pas être suivi (« Do Not Track »), aucune mesure n&apos;est faite.
+        </p>
+        <p>
+          Chaque restaurant voit aussi combien de fois son menu a été ouvert chaque jour. Ce
+          compteur ne contient que des totaux, sans aucune information sur les personnes.
         </p>
       </Section>
 
