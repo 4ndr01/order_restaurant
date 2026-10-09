@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import LegalLinks from "@/components/LegalLinks";
+import { allergenLabels } from "@/lib/allergens";
 import { api } from "@/lib/client";
 import { formatPrice } from "@/lib/format";
 import type { Category, MenuItem, Order, RestaurantTable } from "@/lib/types";
@@ -170,6 +171,7 @@ export default function OrderBoard({
                         {item.description && (
                           <p className="mt-1 text-sm text-muted">{item.description}</p>
                         )}
+                        <AllergenLine codes={item.allergens} />
                         {/* Prix et bouton sur la même ligne : le texte garde toute la
                             largeur, même à côté d'une photo. */}
                         <div className="mt-2 flex items-center justify-between gap-3">
@@ -203,7 +205,13 @@ export default function OrderBoard({
           <p className="py-16 text-center text-muted">Le menu est en cours de préparation.</p>
         )}
 
-        <footer className="mt-12 flex justify-center">
+        <footer className="mt-12 flex flex-col items-center gap-4">
+          {categories.length > 0 && (
+            <p className="max-w-md text-center text-xs text-muted">
+              Les allergènes sont indiqués par le restaurant. En cas d&apos;allergie ou de doute,
+              demandez conseil au personnel avant de commander.
+            </p>
+          )}
           <LegalLinks showCopyright={false} />
         </footer>
       </main>
@@ -254,6 +262,7 @@ export default function OrderBoard({
               {zoomed.description && (
                 <p className="mt-1 text-sm text-muted">{zoomed.description}</p>
               )}
+              <AllergenLine codes={zoomed.allergens} />
               <div className="mt-4 flex gap-2">
                 <button
                   type="button"
@@ -400,6 +409,17 @@ export default function OrderBoard({
         </div>
       )}
     </div>
+  );
+}
+
+function AllergenLine({ codes }: { codes: readonly string[] }) {
+  if (codes.length === 0) {
+    return null;
+  }
+  return (
+    <p className="mt-1.5 text-xs font-medium text-amber-800">
+      Allergènes : {allergenLabels(codes).join(", ")}
+    </p>
   );
 }
 

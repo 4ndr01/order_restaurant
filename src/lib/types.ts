@@ -1,3 +1,5 @@
+import type { Allergen } from "./allergens";
+
 export type Restaurant = {
   id: string;
   slug: string;
@@ -27,6 +29,8 @@ export type MenuItem = {
   available: boolean;
   /** Adresse de la photo du plat, null s'il n'en a pas. */
   photoUrl: string | null;
+  /** Allergènes à déclaration obligatoire présents dans le plat. */
+  allergens: Allergen[];
 };
 
 export type RestaurantTable = {

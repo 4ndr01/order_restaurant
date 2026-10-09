@@ -1,4 +1,5 @@
 import "server-only";
+import { normalizeAllergens } from "./allergens";
 import { createId, ensureSchema, sql } from "./db";
 import type {
   Category,
@@ -21,6 +22,7 @@ type MenuItemRow = {
   price: string;
   available: boolean;
   photo_updated_at: Date | null;
+  allergens: string[] | null;
 };
 type TableRow = { id: string; restaurant_id: string; name: string };
 type OrderRow = {
@@ -55,6 +57,7 @@ function mapMenuItem(row: MenuItemRow): MenuItem {
     price: Number(row.price),
     available: row.available,
     photoUrl: photoUrl(row.id, row.photo_updated_at),
+    allergens: normalizeAllergens(row.allergens),
   };
 }
 
@@ -223,7 +226,14 @@ export async function deleteCategory(
 
 export async function createMenuItem(
   restaurantId: string,
-  data: { categoryId: string; name: string; description: string; price: number; available: boolean },
+  data: {
+    categoryId: string;
+    name: string;
+    description: string;
+    price: number;
+    available: boolean;
+    allergens?: unknown;
+  },
 ): Promise<MenuItem | { error: string }> {
   await ensureSchema();
   const [category] = await sql`
@@ -233,11 +243,14 @@ export async function createMenuItem(
     return { error: "Catégorie inconnue." };
   }
   const id = createId();
+  const allergens = normalizeAllergens(data.allergens);
   await sql`
-    INSERT INTO menu_items (id, restaurant_id, category_id, name, description, price, available)
-    VALUES (
+    INSERT INTO menu_items (
+      id, restaurant_id, category_id, name, description, price, available, allergens
+    ) VALUES (
       ${id}, ${restaurantId}, ${data.categoryId}, ${data.name.slice(0, 80)},
-      ${data.description.slice(0, 200)}, ${Math.round(data.price * 100) / 100}, ${data.available}
+      ${data.description.slice(0, 200)}, ${Math.round(data.price * 100) / 100}, ${data.available},
+      ${sql.array(allergens)}::text[]
     )
   `;
   return {
@@ -249,6 +262,7 @@ export async function createMenuItem(
     price: Math.round(data.price * 100) / 100,
     available: data.available,
     photoUrl: null,
+    allergens,
   };
 }
 
@@ -261,6 +275,7 @@ export async function updateMenuItem(
     price?: number;
     categoryId?: string;
     available?: boolean;
+    allergens?: unknown;
   },
 ): Promise<MenuItem | { error: string }> {
   await ensureSchema();
@@ -291,6 +306,9 @@ export async function updateMenuItem(
     price: patch.price !== undefined ? Math.round(patch.price * 100) / 100 : Number(existing.price),
     categoryId: patch.categoryId !== undefined ? patch.categoryId : existing.category_id,
     available: patch.available !== undefined ? patch.available : existing.available,
+    allergens: normalizeAllergens(
+      patch.allergens !== undefined ? patch.allergens : existing.allergens,
+    ),
   };
 
   await sql`
@@ -299,7 +317,8 @@ export async function updateMenuItem(
       description = ${next.description},
       price = ${next.price},
       category_id = ${next.categoryId},
-      available = ${next.available}
+      available = ${next.available},
+      allergens = ${sql.array(next.allergens)}::text[]
     WHERE id = ${itemId} AND restaurant_id = ${restaurantId}
   `;
 
@@ -803,4 +822,27 @@ export async function getMenuViewStats(restaurantId: string): Promise<MenuViewSt
     todayFromQr: Number(row.today_qr),
     last7Days: Number(row.last7),
   };
+}
+
+// ---- Export des commandes ----
+
+/**
+ * Commandes réellement passées entre deux jours inclus (heure de Paris), de la
+ * plus ancienne à la plus récente. Les paiements abandonnés n'y figurent pas.
+ */
+export async function listOrdersBetweenDays(
+  restaurantId: string,
+  fromDay: string,
+  toDay: string,
+): Promise<Order[]> {
+  await ensureSchema();
+  const rows = await sql<OrderRow[]>`
+    SELECT * FROM orders
+    WHERE restaurant_id = ${restaurantId}
+      AND payment_status NOT IN ('en_attente', 'expire')
+      AND created_at >= (${fromDay}::date::timestamp AT TIME ZONE 'Europe/Paris')
+      AND created_at < ((${toDay}::date + 1)::timestamp AT TIME ZONE 'Europe/Paris')
+    ORDER BY created_at ASC
+  `;
+  return rows.map(mapOrder);
 }

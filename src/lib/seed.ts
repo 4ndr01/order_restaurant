@@ -1,4 +1,5 @@
 import "server-only";
+import type { Allergen } from "./allergens";
 import { createId, sql } from "./db";
 
 type SeedCategory = { key: string; name: string };
@@ -7,6 +8,7 @@ type SeedItem = {
   name: string;
   description: string;
   price: number;
+  allergens: Allergen[];
 };
 
 const CATEGORIES: SeedCategory[] = [
@@ -22,36 +24,42 @@ const ITEMS: SeedItem[] = [
     name: "Burrata crémeuse",
     description: "Tomates anciennes, basilic, huile d'olive vierge extra",
     price: 9.5,
+    allergens: ["lait"],
   },
   {
     categoryKey: "entrees",
     name: "Velouté de saison",
     description: "Légumes du marché, croûtons maison",
     price: 7,
+    allergens: ["gluten", "celeri"],
   },
   {
     categoryKey: "plats",
     name: "Entrecôte grillée",
     description: "Frites maison, beurre d'herbes, salade",
     price: 22,
+    allergens: ["lait"],
   },
   {
     categoryKey: "plats",
     name: "Risotto aux champignons",
     description: "Champignons de Paris, parmesan affiné 24 mois",
     price: 17.5,
+    allergens: ["lait", "sulfites"],
   },
   {
     categoryKey: "desserts",
     name: "Fondant au chocolat",
     description: "Cœur coulant, glace vanille de Madagascar",
     price: 8,
+    allergens: ["gluten", "oeufs", "lait"],
   },
   {
     categoryKey: "boissons",
     name: "Café expresso",
     description: "Torréfaction artisanale",
     price: 2.5,
+    allergens: [],
   },
 ];
 
@@ -79,10 +87,11 @@ export async function seedRestaurant(restaurantId: string): Promise<void> {
       throw new Error(`Catégorie de seed inconnue : ${item.categoryKey}`);
     }
     await sql`
-      INSERT INTO menu_items (id, restaurant_id, category_id, name, description, price, available)
-      VALUES (
+      INSERT INTO menu_items (
+        id, restaurant_id, category_id, name, description, price, available, allergens
+      ) VALUES (
         ${createId()}, ${restaurantId}, ${categoryId}, ${item.name},
-        ${item.description}, ${item.price}, true
+        ${item.description}, ${item.price}, true, ${sql.array(item.allergens)}::text[]
       )
     `;
   }

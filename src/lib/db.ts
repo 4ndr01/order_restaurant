@@ -124,6 +124,11 @@ async function migrate(): Promise<void> {
   await sql`
     ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS photo_updated_at timestamptz
   `;
+  // Allergènes à déclaration obligatoire présents dans le plat (codes de
+  // src/lib/allergens.ts). Vide tant que le restaurant n'a rien coché.
+  await sql`
+    ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS allergens text[] NOT NULL DEFAULT '{}'
+  `;
   await sql`
     CREATE TABLE IF NOT EXISTS menu_item_photos (
       menu_item_id text PRIMARY KEY REFERENCES menu_items(id) ON DELETE CASCADE,

@@ -23,6 +23,25 @@ const BADGE_STYLES: Record<OrderStatus, string> = {
   annulee: "bg-red-100 text-red-700",
 };
 
+/** Carillon de trois notes montantes, assez distinct pour couvrir une cuisine. */
+function playChime(context: AudioContext) {
+  context.resume().catch(() => {});
+  const start = context.currentTime + 0.02;
+  [880, 1175, 1568].forEach((frequency, index) => {
+    const at = start + index * 0.16;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.5, at + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.45);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start(at);
+    oscillator.stop(at + 0.5);
+  });
+}
+
 export default function KitchenBoard({ initialOrders }: { initialOrders: Order[] }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [showArchive, setShowArchive] = useState(false);
@@ -31,6 +50,30 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
   // secondes pour que la cuisine les repère tout de suite.
   const knownIds = useRef(new Set(initialOrders.map((order) => order.id)));
   const [freshIds, setFreshIds] = useState<Set<string>>(() => new Set());
+  // Le navigateur n'autorise le son qu'après un geste : le carillon s'active
+  // d'un toucher sur « Activer le son », en début de service.
+  const audio = useRef<AudioContext | null>(null);
+  const [soundOn, setSoundOn] = useState(false);
+
+  useEffect(() => {
+    const context = audio;
+    return () => {
+      context.current?.close().catch(() => {});
+      context.current = null;
+    };
+  }, []);
+
+  function toggleSound() {
+    if (audio.current) {
+      audio.current.close().catch(() => {});
+      audio.current = null;
+      setSoundOn(false);
+      return;
+    }
+    audio.current = new AudioContext();
+    setSoundOn(true);
+    playChime(audio.current);
+  }
 
   const refresh = useCallback(async () => {
     try {
@@ -39,6 +82,9 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
         .map((order) => order.id)
         .filter((id) => !knownIds.current.has(id));
       if (arrived.length > 0) {
+        if (audio.current) {
+          playChime(audio.current);
+        }
         arrived.forEach((id) => knownIds.current.add(id));
         setFreshIds((current) => new Set([...current, ...arrived]));
         setTimeout(() => {
@@ -96,6 +142,16 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">Écran cuisine</h1>
           <p className="mt-1 text-sm text-muted">Actualisation automatique toutes les 5 secondes.</p>
+          <button
+            type="button"
+            onClick={toggleSound}
+            aria-pressed={soundOn}
+            className={`mt-3 min-h-11 rounded-full px-4 text-sm font-semibold ${
+              soundOn ? "bg-brand-soft text-brand" : "card-float-sm bg-brand text-white"
+            }`}
+          >
+            {soundOn ? "🔔 Son activé · toucher pour couper" : "🔕 Activer le son des nouvelles commandes"}
+          </button>
         </div>
         <div className="flex gap-2 rounded-full bg-surface p-1">
           <button
