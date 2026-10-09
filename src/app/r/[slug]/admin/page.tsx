@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, parisDay } from "@/lib/format";
 import { getMenuViewStats, getRestaurantById, listMenuItems, listOrders } from "@/lib/repo";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +17,9 @@ export default async function AdminHomePage({ params }: { params: Promise<{ slug
     getMenuViewStats(session.restaurantId),
   ]);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const todayOrders = orders.filter((order) => order.createdAt.startsWith(today));
+  // « Aujourd'hui » à l'heure de Paris, comme le compteur d'ouvertures du menu.
+  const today = parisDay(new Date());
+  const todayOrders = orders.filter((order) => parisDay(order.createdAt) === today);
   const active = orders.filter(
     (order) => order.status === "recue" || order.status === "en_preparation",
   );
@@ -88,6 +89,49 @@ export default async function AdminHomePage({ params }: { params: Promise<{ slug
           </Link>
         ))}
       </div>
+
+      <section className="card-float-sm mt-8 rounded-3xl bg-surface p-5">
+        <h2 className="font-bold">Exporter les commandes</h2>
+        <p className="mt-1 text-sm text-muted">
+          Un fichier à ouvrir dans Excel ou à transmettre à votre comptable : une ligne par
+          commande, avec le détail, le statut et le mode de paiement.
+        </p>
+        {/* Formulaire classique : le navigateur télécharge directement le fichier. */}
+        <form
+          method="get"
+          action="/api/admin/orders/export"
+          className="mt-4 flex flex-wrap items-end gap-3"
+        >
+          <label className="text-sm">
+            <span className="font-medium text-muted">Du</span>
+            <input
+              type="date"
+              name="du"
+              required
+              defaultValue={`${today.slice(0, 8)}01`}
+              max={today}
+              className="mt-1.5 block rounded-2xl bg-brand-soft px-3.5 py-2.5"
+            />
+          </label>
+          <label className="text-sm">
+            <span className="font-medium text-muted">Au</span>
+            <input
+              type="date"
+              name="au"
+              required
+              defaultValue={today}
+              max={today}
+              className="mt-1.5 block rounded-2xl bg-brand-soft px-3.5 py-2.5"
+            />
+          </label>
+          <button
+            type="submit"
+            className="card-float-sm min-h-12 rounded-full bg-brand px-5 font-semibold text-white transition hover:bg-brand-strong"
+          >
+            Télécharger (.csv)
+          </button>
+        </form>
+      </section>
     </main>
   );
 }

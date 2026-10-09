@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import AllergenPicker from "@/components/AllergenPicker";
 import { api } from "@/lib/client";
+import { allergenLabels, type Allergen } from "@/lib/allergens";
 import { formatPrice } from "@/lib/format";
 import { shrinkPhoto } from "@/lib/image-client";
 import type { Category, MenuItem } from "@/lib/types";
@@ -11,7 +13,7 @@ export type MenuPayload = {
   items: MenuItem[];
 };
 
-const EMPTY_ITEM = { name: "", description: "", price: "", categoryId: "" };
+const EMPTY_ITEM = { name: "", description: "", price: "", categoryId: "", allergens: [] as Allergen[] };
 
 export default function MenuManager({ initialData }: { initialData: MenuPayload }) {
   const [data, setData] = useState<MenuPayload>(initialData);
@@ -101,6 +103,10 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
             placeholder="Description"
             className="rounded-2xl bg-brand-soft px-3.5 py-2.5 sm:col-span-2"
           />
+          <AllergenPicker
+            value={newItem.allergens}
+            onChange={(allergens) => setNewItem({ ...newItem, allergens })}
+          />
           <select
             value={targetCategoryId}
             onChange={(event) => setNewItem({ ...newItem, categoryId: event.target.value })}
@@ -186,6 +192,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                                   description: editing.description,
                                   price: Number(editing.price),
                                   categoryId: editing.categoryId,
+                                  allergens: editing.allergens,
                                 }),
                               });
                               setEditing(null);
@@ -217,6 +224,10 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                               setEditing({ ...editing, description: event.target.value })
                             }
                             className="rounded-2xl bg-brand-soft px-3.5 py-2 sm:col-span-2"
+                          />
+                          <AllergenPicker
+                            value={editing.allergens}
+                            onChange={(allergens) => setEditing({ ...editing, allergens })}
                           />
                           <select
                             value={editing.categoryId}
@@ -272,6 +283,11 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                             {item.description && (
                               <p className="mt-0.5 text-sm text-muted">{item.description}</p>
                             )}
+                            <p className="mt-1 text-xs text-muted">
+                              {item.allergens.length > 0
+                                ? `Allergènes : ${allergenLabels(item.allergens).join(", ")}`
+                                : "Aucun allergène coché"}
+                            </p>
                           </div>
                           <span className="shrink-0 font-semibold">{formatPrice(item.price)}</span>
                         </div>

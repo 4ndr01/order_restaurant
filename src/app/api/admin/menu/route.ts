@@ -40,6 +40,7 @@ export async function POST(request: Request) {
     description: typeof body.description === "string" ? body.description : "",
     price,
     available: body.available !== false,
+    allergens: body.allergens,
   });
 
   if ("error" in result) {
