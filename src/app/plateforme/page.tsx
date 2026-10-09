@@ -39,6 +39,14 @@ function sinceLabel(iso: string | null): string {
   return `Dernière commande il y a ${days} jour${days > 1 ? "s" : ""}`;
 }
 
+/** Part des ouvertures du menu qui aboutissent à une commande. */
+function conversionLabel(orders: number, views: number): string {
+  if (views === 0) {
+    return "—";
+  }
+  return `${Math.round((orders / views) * 100)} %`;
+}
+
 export default async function PlatformDashboardPage() {
   const admin = await getPlatformAdmin();
   if (!admin) {
@@ -49,6 +57,9 @@ export default async function PlatformDashboardPage() {
   const sum = (pick: (restaurant: PlatformRestaurant) => number) =>
     restaurants.reduce((total, restaurant) => total + pick(restaurant), 0);
 
+  const views7d = sum((r) => r.views7d);
+  const orders7d = sum((r) => r.orders7d);
+
   const stats = [
     {
       label: "Restaurants",
@@ -56,11 +67,21 @@ export default async function PlatformDashboardPage() {
       hint: `${restaurants.filter((r) => r.stripeStatus === "actif").length} avec paiement en ligne`,
     },
     { label: "Commandes aujourd'hui", value: String(sum((r) => r.ordersToday)) },
-    { label: "Commandes sur 7 jours", value: String(sum((r) => r.orders7d)) },
+    { label: "Commandes sur 7 jours", value: String(orders7d) },
     {
       label: "Encaissé en ligne",
       value: formatPrice(sum((r) => r.paidOnlineTotal)),
       hint: "Depuis le lancement, remboursements déduits",
+    },
+    {
+      label: "Menu ouvert sur 7 jours",
+      value: String(views7d),
+      hint: `dont ${sum((r) => r.viewsToday)} aujourd'hui`,
+    },
+    {
+      label: "Taux de commande (7 jours)",
+      value: conversionLabel(orders7d, views7d),
+      hint: "Commandes ÷ ouvertures du menu ; peut dépasser 100 % si un client recommande",
     },
   ];
 
@@ -83,7 +104,7 @@ export default async function PlatformDashboardPage() {
         <h1 className="text-2xl font-extrabold tracking-tight">Vue d&apos;ensemble</h1>
         <p className="mt-1 text-sm text-muted">Lecture seule · tous les restaurants inscrits.</p>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
           {stats.map((stat) => (
             <div key={stat.label} className="card-float-sm rounded-3xl bg-surface p-4">
               <p className="text-sm text-muted">{stat.label}</p>
@@ -147,7 +168,13 @@ export default async function PlatformDashboardPage() {
                     ))}
                   </dl>
 
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <p className="mt-3 text-sm text-muted">
+                    Menu ouvert {restaurant.viewsToday} fois aujourd&apos;hui ·{" "}
+                    {restaurant.views7d} sur 7 jours · taux de commande{" "}
+                    {conversionLabel(restaurant.orders7d, restaurant.views7d)}
+                  </p>
+
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
                     <span className={dormant ? "font-medium text-amber-700" : "text-muted"}>
                       {dormant && restaurant.lastOrderAt
                         ? "Aucune commande depuis 7 jours"

@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import Analytics from "@/components/Analytics";
+import MenuViewBeacon from "@/components/MenuViewBeacon";
 import OrderBoard from "@/components/OrderBoard";
 import { getPublicMenu, getRestaurantBySlug } from "@/lib/repo";
 import { isStripeConfigured } from "@/lib/stripe";
@@ -17,12 +19,17 @@ export default async function TablePage({
   }
   const menu = await getPublicMenu(restaurant.id);
   return (
-    <OrderBoard
-      restaurantSlug={restaurant.slug}
-      restaurantName={restaurant.name}
-      tableId={id}
-      menu={menu}
-      onlinePayment={restaurant.onlinePayment && isStripeConfigured()}
-    />
+    <>
+      <Analytics />
+      {/* Arrivée par le QR code d'une table. */}
+      <MenuViewBeacon restaurantSlug={restaurant.slug} source="qr" />
+      <OrderBoard
+        restaurantSlug={restaurant.slug}
+        restaurantName={restaurant.name}
+        tableId={id}
+        menu={menu}
+        onlinePayment={restaurant.onlinePayment && isStripeConfigured()}
+      />
+    </>
   );
 }

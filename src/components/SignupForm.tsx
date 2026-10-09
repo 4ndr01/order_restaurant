@@ -1,14 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/client";
 import { ANNOUNCED_PLAN, formatPlanPrice } from "@/lib/plans";
 import { slugify } from "@/lib/slug";
 
 export default function SignupForm() {
-  const router = useRouter();
   const [restaurantName, setRestaurantName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
@@ -33,8 +31,10 @@ export default function SignupForm() {
         method: "POST",
         body: JSON.stringify({ restaurantName, slug, email, password }),
       });
-      router.push(`/r/${result.slug}/admin`);
-      router.refresh();
+      // Rechargement complet : la mesure d'audience des pages publiques ne
+      // suit pas le restaurateur dans son espace.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- rechargement voulu, voir ci-dessus
+      window.location.assign(`/r/${result.slug}/admin`);
     } catch (cause) {
       setError((cause as Error).message);
       setPending(false);

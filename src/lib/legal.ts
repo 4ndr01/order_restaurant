@@ -13,7 +13,7 @@ export const LEGAL = {
   publicationDirector: "[Prénom Nom du directeur de la publication]",
   contactEmail: "[Email de contact]",
   phone: "[Téléphone]",
-  lastUpdated: "26 septembre 2026",
+  lastUpdated: "9 octobre 2026",
 };
 
 export const HOST = {

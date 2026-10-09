@@ -691,6 +691,8 @@ export type PlatformRestaurant = {
   ordersTotal: number;
   paidOnlineTotal: number;
   lastOrderAt: string | null;
+  viewsToday: number;
+  views7d: number;
 };
 
 type PlatformRow = {
@@ -706,6 +708,8 @@ type PlatformRow = {
   orders_total: string;
   paid_online_total: string;
   last_order_at: Date | null;
+  views_today: string;
+  views_7d: string;
 };
 
 /**
@@ -728,7 +732,16 @@ export async function getPlatformOverview(): Promise<PlatformRestaurant[]> {
       COUNT(o.id) FILTER (WHERE o.created_at >= now() - interval '7 days') AS orders_7d,
       COUNT(o.id) AS orders_total,
       COALESCE(SUM(o.total) FILTER (WHERE o.payment_status = 'paye'), 0) AS paid_online_total,
-      MAX(o.created_at) AS last_order_at
+      MAX(o.created_at) AS last_order_at,
+      (
+        SELECT COALESCE(SUM(v.views), 0) FROM menu_views v
+        WHERE v.restaurant_id = r.id AND v.day = (now() AT TIME ZONE 'Europe/Paris')::date
+      ) AS views_today,
+      (
+        SELECT COALESCE(SUM(v.views), 0) FROM menu_views v
+        WHERE v.restaurant_id = r.id
+          AND v.day > (now() AT TIME ZONE 'Europe/Paris')::date - 7
+      ) AS views_7d
     FROM restaurants r
     LEFT JOIN orders o
       ON o.restaurant_id = r.id AND o.payment_status NOT IN ('en_attente', 'expire')
@@ -751,5 +764,43 @@ export async function getPlatformOverview(): Promise<PlatformRestaurant[]> {
     ordersTotal: Number(row.orders_total),
     paidOnlineTotal: Number(row.paid_online_total),
     lastOrderAt: row.last_order_at ? row.last_order_at.toISOString() : null,
+    viewsToday: Number(row.views_today),
+    views7d: Number(row.views_7d),
   }));
+}
+
+// ---- Compteur d'ouvertures du menu ----
+
+export type MenuViewSource = "qr" | "lien";
+
+export async function recordMenuView(restaurantId: string, source: MenuViewSource): Promise<void> {
+  await ensureSchema();
+  await sql`
+    INSERT INTO menu_views (restaurant_id, day, source, views)
+    VALUES (${restaurantId}, (now() AT TIME ZONE 'Europe/Paris')::date, ${source}, 1)
+    ON CONFLICT (restaurant_id, day, source) DO UPDATE SET views = menu_views.views + 1
+  `;
+}
+
+export type MenuViewStats = { today: number; todayFromQr: number; last7Days: number };
+
+/** Ouvertures du menu aujourd'hui et sur les 7 derniers jours (aujourd'hui compris). */
+export async function getMenuViewStats(restaurantId: string): Promise<MenuViewStats> {
+  await ensureSchema();
+  const [row] = await sql<{ today: string; today_qr: string; last7: string }[]>`
+    SELECT
+      COALESCE(SUM(views) FILTER (WHERE day = (now() AT TIME ZONE 'Europe/Paris')::date), 0) AS today,
+      COALESCE(SUM(views) FILTER (
+        WHERE day = (now() AT TIME ZONE 'Europe/Paris')::date AND source = 'qr'
+      ), 0) AS today_qr,
+      COALESCE(SUM(views), 0) AS last7
+    FROM menu_views
+    WHERE restaurant_id = ${restaurantId}
+      AND day > (now() AT TIME ZONE 'Europe/Paris')::date - 7
+  `;
+  return {
+    today: Number(row.today),
+    todayFromQr: Number(row.today_qr),
+    last7Days: Number(row.last7),
+  };
 }

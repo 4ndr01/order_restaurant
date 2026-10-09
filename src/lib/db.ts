@@ -169,6 +169,17 @@ async function migrate(): Promise<void> {
       ADD COLUMN IF NOT EXISTS stripe_payment_intent_id text,
       ADD COLUMN IF NOT EXISTS paid_at timestamptz
   `;
+  // Compteur d'ouvertures du menu, par restaurant et par jour (heure de
+  // Paris). Uniquement des totaux : aucune donnée sur les visiteurs.
+  await sql`
+    CREATE TABLE IF NOT EXISTS menu_views (
+      restaurant_id text NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+      day date NOT NULL,
+      source text NOT NULL,
+      views integer NOT NULL DEFAULT 0,
+      PRIMARY KEY (restaurant_id, day, source)
+    )
+  `;
   await sql`
     CREATE INDEX IF NOT EXISTS orders_restaurant_created_idx
       ON orders (restaurant_id, created_at DESC)

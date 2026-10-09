@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Analytics from "@/components/Analytics";
 import BrandHeader from "@/components/BrandHeader";
 import LegalLinks from "@/components/LegalLinks";
 import { LEGAL, isPlaceholder } from "@/lib/legal";
@@ -12,6 +13,7 @@ export default function LegalPage({
 }) {
   return (
     <>
+      <Analytics />
       <BrandHeader />
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
         <h1 className="text-3xl font-extrabold tracking-tight">{title}</h1>
