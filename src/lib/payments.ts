@@ -27,6 +27,21 @@ function orderUrl(baseUrl: string, restaurant: Restaurant, orderId: string): str
   return `${baseUrl}/r/${restaurant.slug}/commande/${orderId}`;
 }
 
+// ---- Clés anti-doublon ----
+
+const RETRY_WINDOW_MS = 10 * 60_000;
+
+/**
+ * Clé anti-doublon (idempotence) valable dix minutes. Stripe mémorise pendant
+ * 24 h la réponse associée à une clé, erreurs comprises : avec une clé fixe,
+ * une demande refusée une fois (compte pas encore activé, solde insuffisant
+ * pour rembourser…) renverrait la même erreur pendant une journée, même une
+ * fois le problème réglé. Un double clic reste dédoublonné.
+ */
+function idempotencyKey(base: string): string {
+  return `${base}-${Math.floor(Date.now() / RETRY_WINDOW_MS)}`;
+}
+
 // ---- Compte Stripe du restaurateur ----
 
 /**
@@ -89,9 +104,13 @@ export async function ensureConnectedAccount(
       business_profile: { name: restaurant.name, mcc: RESTAURANT_MCC },
       metadata: { restaurant_id: restaurant.id },
     },
-    // Même clé si on relance : Stripe renvoie le compte déjà créé au lieu
-    // d'en ouvrir un second.
-    { idempotencyKey: `account-${mode}-${restaurant.id}${replacing ? `-${replacing}` : ""}` },
+    // Un second clic rapproché reçoit le compte déjà créé au lieu d'en
+    // ouvrir un second.
+    {
+      idempotencyKey: idempotencyKey(
+        `account-${mode}-${restaurant.id}${replacing ? `-${replacing}` : ""}`,
+      ),
+    },
   );
   return setRestaurantStripeAccount(restaurant.id, account.id, mode);
 }
@@ -292,7 +311,12 @@ export async function refundOrder(restaurant: Restaurant, order: Order): Promise
   }
   await getStripe().refunds.create(
     { payment_intent: paymentIntentId },
-    { stripeAccount: restaurant.stripeAccountId, idempotencyKey: `refund-${order.id}` },
+    // Stripe refuse de rembourser au-delà du montant payé : réessayer plus
+    // tard ne peut pas rembourser deux fois.
+    {
+      stripeAccount: restaurant.stripeAccountId,
+      idempotencyKey: idempotencyKey(`refund-${order.id}`),
+    },
   );
   return markOrderRefunded(restaurant.id, order.id);
 }
