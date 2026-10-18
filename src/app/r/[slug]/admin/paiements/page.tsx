@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { syncAccountStatus, type AccountState } from "@/lib/payments";
 import { getRestaurantById } from "@/lib/repo";
 import { isStripeConfigured } from "@/lib/stripe";
+import { currentStripeMode } from "@/lib/stripe-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,12 @@ export default async function PaymentsPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-10">
       <h1 className="text-2xl font-extrabold tracking-tight">Paiement en ligne</h1>
+      {currentStripeMode() === "test" && (
+        <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Mode test : aucun vrai paiement n&apos;est encaissé. Pour essayer, payez avec la carte
+          4242 4242 4242 4242, une date future et n&apos;importe quel code.
+        </p>
+      )}
       <p className="mt-1 text-muted">
         Vos clients paient par carte, Apple Pay ou Google Pay au moment de commander.
       </p>

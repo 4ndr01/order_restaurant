@@ -1,6 +1,7 @@
 import "server-only";
 import { normalizeAllergens } from "./allergens";
 import { createId, ensureSchema, sql } from "./db";
+import { currentStripeMode, type StripeMode } from "./stripe-mode";
 import type {
   Category,
   MenuItem,
@@ -95,24 +96,36 @@ type RestaurantRow = {
   price_cents: number;
   stripe_account_id: string | null;
   stripe_charges_enabled: boolean;
+  stripe_account_mode: string | null;
 };
 
+/**
+ * Compte Stripe utilisable dans le mode courant : après le passage en
+ * production, un compte relié en test est ignoré et le restaurant repasse à
+ * « Activer le paiement en ligne ».
+ */
+function usableStripeAccount(accountId: string | null, mode: string | null): string | null {
+  return accountId && mode === currentStripeMode() ? accountId : null;
+}
+
 function mapRestaurant(row: RestaurantRow): Restaurant {
+  const stripeAccountId = usableStripeAccount(row.stripe_account_id, row.stripe_account_mode);
   return {
     id: row.id,
     slug: row.slug,
     name: row.name,
     plan: row.plan,
     priceCents: row.price_cents,
-    stripeAccountId: row.stripe_account_id,
-    onlinePayment: Boolean(row.stripe_account_id) && row.stripe_charges_enabled,
+    stripeAccountId,
+    onlinePayment: Boolean(stripeAccountId) && row.stripe_charges_enabled,
   };
 }
 
 export async function getRestaurantBySlug(slug: string): Promise<Restaurant | null> {
   await ensureSchema();
   const rows = await sql<RestaurantRow[]>`
-    SELECT id, slug, name, plan, price_cents, stripe_account_id, stripe_charges_enabled
+    SELECT id, slug, name, plan, price_cents, stripe_account_id, stripe_charges_enabled,
+      stripe_account_mode
     FROM restaurants WHERE slug = ${slug}
   `;
   return rows[0] ? mapRestaurant(rows[0]) : null;
@@ -121,7 +134,8 @@ export async function getRestaurantBySlug(slug: string): Promise<Restaurant | nu
 export async function getRestaurantById(id: string): Promise<Restaurant | null> {
   await ensureSchema();
   const rows = await sql<RestaurantRow[]>`
-    SELECT id, slug, name, plan, price_cents, stripe_account_id, stripe_charges_enabled
+    SELECT id, slug, name, plan, price_cents, stripe_account_id, stripe_charges_enabled,
+      stripe_account_mode
     FROM restaurants WHERE id = ${id}
   `;
   return rows[0] ? mapRestaurant(rows[0]) : null;
@@ -583,15 +597,24 @@ export async function updateOrderStatus(
 
 // ---- Paiement en ligne (Stripe) ----
 
-/** Relie un compte Stripe au restaurant, sauf s'il en a déjà un. Renvoie le compte retenu. */
+/**
+ * Relie un compte Stripe au restaurant, sauf s'il en a déjà un dans ce mode.
+ * Un compte d'un autre mode (de test, après le passage en production) est
+ * remplacé. Renvoie le compte retenu.
+ */
 export async function setRestaurantStripeAccount(
   restaurantId: string,
   accountId: string,
+  mode: StripeMode,
 ): Promise<string> {
   await ensureSchema();
   const rows = await sql<{ stripe_account_id: string }[]>`
-    UPDATE restaurants SET stripe_account_id = ${accountId}
-    WHERE id = ${restaurantId} AND stripe_account_id IS NULL
+    UPDATE restaurants SET
+      stripe_account_id = ${accountId},
+      stripe_account_mode = ${mode},
+      stripe_charges_enabled = false
+    WHERE id = ${restaurantId}
+      AND (stripe_account_id IS NULL OR stripe_account_mode IS DISTINCT FROM ${mode})
     RETURNING stripe_account_id
   `;
   if (rows[0]) {
@@ -722,6 +745,7 @@ type PlatformRow = {
   created_at: Date;
   stripe_account_id: string | null;
   stripe_charges_enabled: boolean;
+  stripe_account_mode: string | null;
   orders_today: string;
   orders_7d: string;
   orders_total: string;
@@ -741,6 +765,7 @@ export async function getPlatformOverview(): Promise<PlatformRestaurant[]> {
   const rows = await sql<PlatformRow[]>`
     SELECT
       r.id, r.slug, r.name, r.created_at, r.stripe_account_id, r.stripe_charges_enabled,
+      r.stripe_account_mode,
       (
         SELECT ow.email FROM restaurant_owners ow
         WHERE ow.restaurant_id = r.id ORDER BY ow.created_at ASC LIMIT 1
@@ -773,7 +798,7 @@ export async function getPlatformOverview(): Promise<PlatformRestaurant[]> {
     name: row.name,
     ownerEmail: row.owner_email,
     createdAt: row.created_at.toISOString(),
-    stripeStatus: !row.stripe_account_id
+    stripeStatus: !usableStripeAccount(row.stripe_account_id, row.stripe_account_mode)
       ? "inactif"
       : row.stripe_charges_enabled
         ? "actif"
