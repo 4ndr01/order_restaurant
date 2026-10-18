@@ -11,6 +11,7 @@ import {
   markOrderRefunded,
   setRestaurantStripeAccount,
   setStripeChargesEnabled,
+  unlinkStripeAccount,
 } from "./repo";
 import { getStripe, toCents } from "./stripe";
 import { currentStripeMode } from "./stripe-mode";
@@ -29,6 +30,37 @@ function orderUrl(baseUrl: string, restaurant: Restaurant, orderId: string): str
 // ---- Compte Stripe du restaurateur ----
 
 /**
+ * Vrai quand Stripe répond que le compte du restaurant n'existe pas ou
+ * n'appartient pas au compte Stripe actuel de la plateforme : c'est le cas
+ * après un changement de compte Stripe (les restaurants avaient été reliés
+ * à l'ancien).
+ */
+export function isUnreachableAccountError(error: unknown): boolean {
+  const { code, message } = (error ?? {}) as { code?: unknown; message?: unknown };
+  return (
+    code === "account_invalid" ||
+    (typeof message === "string" &&
+      /does not have access to account|no such account|account .* does not exist/i.test(message))
+  );
+}
+
+/** Efface le lien vers un compte inaccessible. Renvoie vrai s'il a été effacé. */
+export async function forgetUnreachableAccount(
+  restaurantId: string,
+  accountId: string,
+  error: unknown,
+): Promise<boolean> {
+  if (!isUnreachableAccountError(error)) {
+    return false;
+  }
+  console.warn(
+    `Compte Stripe ${accountId} inaccessible avec la clé actuelle : lien effacé pour le restaurant ${restaurantId}.`,
+  );
+  await unlinkStripeAccount(restaurantId, accountId);
+  return true;
+}
+
+/**
  * Crée le compte Stripe du restaurant s'il n'existe pas encore. Stripe porte
  * le risque des impayés et le restaurateur paie ses propres frais : la
  * plateforme n'avance jamais d'argent pour un restaurant.
@@ -36,6 +68,7 @@ function orderUrl(baseUrl: string, restaurant: Restaurant, orderId: string): str
 export async function ensureConnectedAccount(
   restaurant: Restaurant,
   ownerEmail: string | null,
+  replacing?: string,
 ): Promise<string> {
   if (restaurant.stripeAccountId) {
     return restaurant.stripeAccountId;
@@ -58,9 +91,34 @@ export async function ensureConnectedAccount(
     },
     // Même clé si on relance : Stripe renvoie le compte déjà créé au lieu
     // d'en ouvrir un second.
-    { idempotencyKey: `account-${mode}-${restaurant.id}` },
+    { idempotencyKey: `account-${mode}-${restaurant.id}${replacing ? `-${replacing}` : ""}` },
   );
   return setRestaurantStripeAccount(restaurant.id, account.id, mode);
+}
+
+/**
+ * Lien vers l'inscription Stripe du restaurant, en créant son compte si
+ * besoin. Un compte relié sous un ancien compte Stripe est remplacé.
+ */
+export async function openOnboarding(
+  restaurant: Restaurant,
+  ownerEmail: string | null,
+  baseUrl: string,
+): Promise<string> {
+  const accountId = await ensureConnectedAccount(restaurant, ownerEmail);
+  try {
+    return await createOnboardingLink(accountId, baseUrl, restaurant.slug);
+  } catch (error) {
+    if (!(await forgetUnreachableAccount(restaurant.id, accountId, error))) {
+      throw error;
+    }
+    const fresh = await ensureConnectedAccount(
+      { ...restaurant, stripeAccountId: null },
+      ownerEmail,
+      accountId,
+    );
+    return createOnboardingLink(fresh, baseUrl, restaurant.slug);
+  }
 }
 
 export async function createOnboardingLink(
@@ -102,34 +160,43 @@ export async function createCheckoutForOrder(
     throw new Error("Ce restaurant n'a pas de compte Stripe.");
   }
 
-  const session = await getStripe().checkout.sessions.create(
-    {
-      mode: "payment",
-      locale: "fr",
-      payment_method_types: ["card"],
-      line_items: order.lines
-        .filter((line) => line.unitPrice > 0)
-        .map((line) => ({
-          quantity: line.quantity,
-          price_data: {
-            currency: "eur",
-            unit_amount: toCents(line.unitPrice),
-            product_data: { name: line.name },
-          },
-        })),
-      customer_email: order.customerEmail ?? undefined,
-      client_reference_id: order.id,
-      metadata: { order_id: order.id, restaurant_id: restaurant.id },
-      payment_intent_data: {
-        description: `Commande n° ${order.reference} — ${order.tableName}`,
+  const accountId = restaurant.stripeAccountId;
+  let session: Stripe.Checkout.Session;
+  try {
+    session = await getStripe().checkout.sessions.create(
+      {
+        mode: "payment",
+        locale: "fr",
+        payment_method_types: ["card"],
+        line_items: order.lines
+          .filter((line) => line.unitPrice > 0)
+          .map((line) => ({
+            quantity: line.quantity,
+            price_data: {
+              currency: "eur",
+              unit_amount: toCents(line.unitPrice),
+              product_data: { name: line.name },
+            },
+          })),
+        customer_email: order.customerEmail ?? undefined,
+        client_reference_id: order.id,
         metadata: { order_id: order.id, restaurant_id: restaurant.id },
+        payment_intent_data: {
+          description: `Commande n° ${order.reference} — ${order.tableName}`,
+          metadata: { order_id: order.id, restaurant_id: restaurant.id },
+        },
+        expires_at: Math.floor(Date.now() / 1000) + CHECKOUT_TTL_SECONDS,
+        success_url: `${orderUrl(baseUrl, restaurant, order.id)}?paiement=ok`,
+        cancel_url: orderUrl(baseUrl, restaurant, order.id),
       },
-      expires_at: Math.floor(Date.now() / 1000) + CHECKOUT_TTL_SECONDS,
-      success_url: `${orderUrl(baseUrl, restaurant, order.id)}?paiement=ok`,
-      cancel_url: orderUrl(baseUrl, restaurant, order.id),
-    },
-    { stripeAccount: restaurant.stripeAccountId, idempotencyKey: `checkout-${order.id}` },
-  );
+      { stripeAccount: accountId, idempotencyKey: `checkout-${order.id}` },
+    );
+  } catch (error) {
+    // Compte d'un ancien compte Stripe : on l'oublie pour que les commandes
+    // suivantes passent en paiement sur place au lieu d'échouer.
+    await forgetUnreachableAccount(restaurant.id, accountId, error);
+    throw error;
+  }
 
   if (!session.url) {
     throw new Error("Stripe n'a pas renvoyé de page de paiement.");
