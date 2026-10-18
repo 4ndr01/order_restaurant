@@ -1,6 +1,6 @@
 import StripeConnectButton from "@/components/StripeConnectButton";
 import { getSession } from "@/lib/auth";
-import { syncAccountStatus, type AccountState } from "@/lib/payments";
+import { forgetUnreachableAccount, syncAccountStatus, type AccountState } from "@/lib/payments";
 import { getRestaurantById } from "@/lib/repo";
 import { isStripeConfigured } from "@/lib/stripe";
 import { currentStripeMode } from "@/lib/stripe-mode";
@@ -18,16 +18,22 @@ export default async function PaymentsPage() {
   // après son inscription, et le webhook peut avoir un temps de retard.
   let state: AccountState | null = null;
   let syncFailed = false;
-  if (restaurant.stripeAccountId && isStripeConfigured()) {
+  let accountId = restaurant.stripeAccountId;
+  if (accountId && isStripeConfigured()) {
     try {
-      state = await syncAccountStatus(restaurant.stripeAccountId);
+      state = await syncAccountStatus(accountId);
     } catch (error) {
-      console.error("Lecture du compte Stripe impossible:", error);
-      syncFailed = true;
+      if (await forgetUnreachableAccount(restaurant.id, accountId, error)) {
+        // Relié sous un ancien compte Stripe : à refaire avec le compte actuel.
+        accountId = null;
+      } else {
+        console.error("Lecture du compte Stripe impossible:", error);
+        syncFailed = true;
+      }
     }
   }
 
-  const active = state ? state.chargesEnabled : restaurant.onlinePayment;
+  const active = state ? state.chargesEnabled : Boolean(accountId) && restaurant.onlinePayment;
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-10">
@@ -71,7 +77,7 @@ export default async function PaymentsPage() {
               Voir mes paiements sur Stripe
             </a>
           </>
-        ) : restaurant.stripeAccountId ? (
+        ) : accountId ? (
           <>
             <p className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-800">
               Inscription à terminer

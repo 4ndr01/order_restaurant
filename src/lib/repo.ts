@@ -626,6 +626,19 @@ export async function setRestaurantStripeAccount(
   return existing.stripe_account_id;
 }
 
+/**
+ * Oublie un compte Stripe devenu inaccessible (relié sous un ancien compte
+ * Stripe de la plateforme). Le restaurant repasse au paiement en salle.
+ */
+export async function unlinkStripeAccount(restaurantId: string, accountId: string): Promise<void> {
+  await ensureSchema();
+  await sql`
+    UPDATE restaurants SET
+      stripe_account_id = NULL, stripe_account_mode = NULL, stripe_charges_enabled = false
+    WHERE id = ${restaurantId} AND stripe_account_id = ${accountId}
+  `;
+}
+
 export async function setStripeChargesEnabled(accountId: string, enabled: boolean): Promise<void> {
   await ensureSchema();
   await sql`

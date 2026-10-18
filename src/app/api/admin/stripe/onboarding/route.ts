@@ -1,6 +1,6 @@
 import { requireSession } from "@/lib/auth";
 import { resolveBaseUrl } from "@/lib/base-url";
-import { createOnboardingLink, ensureConnectedAccount } from "@/lib/payments";
+import { openOnboarding } from "@/lib/payments";
 import { getOwnerEmail, getRestaurantById } from "@/lib/repo";
 import { describeStripeError, isStripeConfigured } from "@/lib/stripe";
 
@@ -25,12 +25,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const accountId = await ensureConnectedAccount(
+    const baseUrl = resolveBaseUrl(request.headers, null, new URL(request.url).origin);
+    const url = await openOnboarding(
       restaurant,
       await getOwnerEmail(restaurantId, ownerId),
+      baseUrl,
     );
-    const baseUrl = resolveBaseUrl(request.headers, null, new URL(request.url).origin);
-    const url = await createOnboardingLink(accountId, baseUrl, restaurant.slug);
     return Response.json({ url });
   } catch (error) {
     console.error("Ouverture de l'inscription Stripe impossible:", error);
