@@ -13,6 +13,7 @@ import {
   setStripeChargesEnabled,
 } from "./repo";
 import { getStripe, toCents } from "./stripe";
+import { currentStripeMode } from "./stripe-mode";
 import type { Order, Restaurant } from "./types";
 
 // Durée minimale acceptée par Stripe pour une page de paiement.
@@ -39,6 +40,10 @@ export async function ensureConnectedAccount(
   if (restaurant.stripeAccountId) {
     return restaurant.stripeAccountId;
   }
+  const mode = currentStripeMode();
+  if (!mode) {
+    throw new Error("STRIPE_SECRET_KEY manquant.");
+  }
   const account = await getStripe().accounts.create(
     {
       country: "FR",
@@ -53,9 +58,9 @@ export async function ensureConnectedAccount(
     },
     // Même clé si on relance : Stripe renvoie le compte déjà créé au lieu
     // d'en ouvrir un second.
-    { idempotencyKey: `account-${restaurant.id}` },
+    { idempotencyKey: `account-${mode}-${restaurant.id}` },
   );
-  return setRestaurantStripeAccount(restaurant.id, account.id);
+  return setRestaurantStripeAccount(restaurant.id, account.id, mode);
 }
 
 export async function createOnboardingLink(

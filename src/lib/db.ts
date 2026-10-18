@@ -79,6 +79,16 @@ async function migrate(): Promise<void> {
       ADD COLUMN IF NOT EXISTS stripe_account_id text UNIQUE,
       ADD COLUMN IF NOT EXISTS stripe_charges_enabled boolean NOT NULL DEFAULT false
   `;
+  // Mode Stripe (« test » ou « live ») du compte relié : un compte de test
+  // n'existe pas en production. Les comptes reliés avant l'ajout de cette
+  // colonne l'ont tous été en mode test.
+  await sql`
+    ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS stripe_account_mode text
+  `;
+  await sql`
+    UPDATE restaurants SET stripe_account_mode = 'test'
+    WHERE stripe_account_id IS NOT NULL AND stripe_account_mode IS NULL
+  `;
   await sql`
     CREATE TABLE IF NOT EXISTS restaurant_owners (
       id text PRIMARY KEY,

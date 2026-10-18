@@ -6,6 +6,7 @@ import { BRAND_NAME } from "@/lib/brand";
 import { formatPrice } from "@/lib/format";
 import { getPlatformAdmin } from "@/lib/platform-auth";
 import { getPlatformOverview, type PlatformRestaurant } from "@/lib/repo";
+import { currentStripeMode } from "@/lib/stripe-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,22 @@ function sinceLabel(iso: string | null): string {
   if (hours < 24) return `Dernière commande il y a ${hours} h`;
   const days = Math.floor(hours / 24);
   return `Dernière commande il y a ${days} jour${days > 1 ? "s" : ""}`;
+}
+
+/** Rappel permanent du mode Stripe : impossible de se croire en production par erreur. */
+function StripeModeBadge() {
+  const mode = currentStripeMode();
+  const badge =
+    mode === "live"
+      ? { label: "Stripe : production", className: "bg-emerald-100 text-emerald-800" }
+      : mode === "test"
+        ? { label: "Stripe : mode test", className: "bg-amber-100 text-amber-800" }
+        : { label: "Stripe : non configuré", className: "bg-stone-100 text-stone-600" };
+  return (
+    <span className={`rounded-full px-3 py-1 text-xs font-bold ${badge.className}`}>
+      {badge.label}
+    </span>
+  );
 }
 
 /** Part des ouvertures du menu qui aboutissent à une commande. */
@@ -95,6 +112,7 @@ export default async function PlatformDashboardPage() {
           </span>
         </span>
         <div className="flex items-center gap-2">
+          <StripeModeBadge />
           <span className="hidden text-sm text-muted sm:inline">{admin}</span>
           <PlatformLogoutButton />
         </div>
