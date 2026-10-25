@@ -1,4 +1,3 @@
-import type Stripe from "stripe";
 import { resolveBaseUrl } from "@/lib/base-url";
 import {
   applyPlatformSubscriptionCheckout,
@@ -7,21 +6,27 @@ import {
 } from "@/lib/billing";
 import { applyAccountUpdate, applyCheckoutSession } from "@/lib/payments";
 import { getRestaurantById } from "@/lib/repo";
-import { getStripe, webhookSecret } from "@/lib/stripe";
+import { webhookSecrets } from "@/lib/stripe";
+import { constructEventWithSecrets } from "@/lib/webhook-signature";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Notifications Stripe signées. Deux origines, un seul endpoint :
- * - les comptes connectés (`event.account` renseigné) : paiement des commandes
- *   et inscription Connect ;
- * - le compte plateforme (pas de `event.account`) : abonnement des restaurants.
+ * Notifications Stripe signées. Deux endpoints, la même URL : Stripe n'écoute
+ * qu'une origine par endpoint.
+ * - STRIPE_WEBHOOK_SECRET : comptes connectés (`event.account` renseigné),
+ *   paiement des commandes et inscription Connect.
+ * - STRIPE_WEBHOOK_SECRET_PLATFORM : compte plateforme (pas de `event.account`),
+ *   abonnement des restaurants.
  * Une réponse en erreur fait que Stripe renvoie le message plus tard.
  */
 export async function POST(request: Request) {
-  const secret = webhookSecret();
-  if (!secret) {
-    console.error("STRIPE_WEBHOOK_SECRET manquant : notification Stripe ignorée.");
+  const secrets = webhookSecrets();
+  if (secrets.length === 0) {
+    console.error(
+      "Aucun secret de webhook Stripe : STRIPE_WEBHOOK_SECRET (comptes connectés) " +
+        "ou STRIPE_WEBHOOK_SECRET_PLATFORM (abonnement).",
+    );
     return Response.json({ error: "Webhook non configuré." }, { status: 500 });
   }
 
@@ -30,12 +35,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "Signature manquante." }, { status: 400 });
   }
 
-  let event: Stripe.Event;
-  try {
-    // Le corps doit rester exactement celui envoyé par Stripe pour que la
-    // signature corresponde : on le lit en texte brut, sans le parser.
-    event = getStripe().webhooks.constructEvent(await request.text(), signature, secret);
-  } catch {
+  // Le corps doit rester exactement celui envoyé par Stripe pour que la
+  // signature corresponde : on le lit en texte brut, sans le parser.
+  const event = constructEventWithSecrets(await request.text(), signature, secrets);
+  if (!event) {
     return Response.json({ error: "Signature invalide." }, { status: 400 });
   }
 

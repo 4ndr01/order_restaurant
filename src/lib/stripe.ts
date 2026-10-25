@@ -1,5 +1,6 @@
 import "server-only";
 import Stripe from "stripe";
+import { collectWebhookSecrets } from "./webhook-signature";
 
 export { describeStripeError } from "./stripe-error";
 
@@ -21,8 +22,17 @@ function secretKey(): string {
   return process.env.STRIPE_SECRET_KEY?.trim() ?? "";
 }
 
-export function webhookSecret(): string {
-  return process.env.STRIPE_WEBHOOK_SECRET?.trim() ?? "";
+/**
+ * Secrets des deux endpoints qui partagent l'URL /api/stripe/webhook.
+ * Stripe n'écoute qu'une origine par endpoint (`connect: true` ou `false`),
+ * donc chacun a son secret : comptes connectés, puis compte plateforme.
+ * Le second est optionnel tant que l'abonnement n'est pas activé.
+ */
+export function webhookSecrets(): string[] {
+  return collectWebhookSecrets(
+    process.env.STRIPE_WEBHOOK_SECRET,
+    process.env.STRIPE_WEBHOOK_SECRET_PLATFORM,
+  );
 }
 
 export function isStripeConfigured(): boolean {
