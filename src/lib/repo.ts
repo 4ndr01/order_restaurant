@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { normalizeAllergens } from "./allergens";
 import { createId, ensureSchema, sql } from "./db";
 import { currentStripeMode, type StripeMode } from "./stripe-mode";
@@ -612,7 +613,8 @@ export async function setRestaurantStripeAccount(
     UPDATE restaurants SET
       stripe_account_id = ${accountId},
       stripe_account_mode = ${mode},
-      stripe_charges_enabled = false
+      stripe_charges_enabled = false,
+      stripe_account_idempotency_key = NULL
     WHERE id = ${restaurantId}
       AND (stripe_account_id IS NULL OR stripe_account_mode IS DISTINCT FROM ${mode})
     RETURNING stripe_account_id
@@ -634,8 +636,72 @@ export async function unlinkStripeAccount(restaurantId: string, accountId: strin
   await ensureSchema();
   await sql`
     UPDATE restaurants SET
-      stripe_account_id = NULL, stripe_account_mode = NULL, stripe_charges_enabled = false
+      stripe_account_id = NULL, stripe_account_mode = NULL, stripe_charges_enabled = false,
+      stripe_account_idempotency_key = NULL
     WHERE id = ${restaurantId} AND stripe_account_id = ${accountId}
+  `;
+}
+
+/**
+ * Réserve la création du compte Stripe du restaurant.
+ *
+ * Si le compte du mode courant existe déjà, on le renvoie. Sinon toutes les
+ * requêtes concurrentes (double clic, plusieurs instances) partagent une seule
+ * clé d'idempotence, écrite ici avant l'appel Stripe. Une clé n'est réécrite
+ * que lorsqu'elle a été effacée — c'est-à-dire après une erreur déjà reçue.
+ */
+export async function claimStripeAccountCreation(
+  restaurantId: string,
+  mode: StripeMode,
+): Promise<{ accountId: string } | { idempotencyKey: string }> {
+  await ensureSchema();
+  return sql.begin(async (tx) => {
+    // Verrou propre à ce restaurant, distinct de celui des numéros de commande.
+    await tx`SELECT pg_advisory_xact_lock(hashtext('stripe-account:' || ${restaurantId}))`;
+    const [row] = await tx<
+      {
+        stripe_account_id: string | null;
+        stripe_account_mode: string | null;
+        stripe_account_idempotency_key: string | null;
+      }[]
+    >`
+      SELECT stripe_account_id, stripe_account_mode, stripe_account_idempotency_key
+      FROM restaurants
+      WHERE id = ${restaurantId}
+      FOR UPDATE
+    `;
+    if (!row) {
+      throw new Error("Restaurant introuvable.");
+    }
+    if (row.stripe_account_id && row.stripe_account_mode === mode) {
+      return { accountId: row.stripe_account_id };
+    }
+    if (row.stripe_account_idempotency_key) {
+      return { idempotencyKey: row.stripe_account_idempotency_key };
+    }
+    const idempotencyKey = `account-${mode}-${restaurantId}-${randomUUID()}`;
+    await tx`
+      UPDATE restaurants
+      SET stripe_account_idempotency_key = ${idempotencyKey}
+      WHERE id = ${restaurantId}
+    `;
+    return { idempotencyKey };
+  });
+}
+
+/**
+ * Oublie une clé d'idempotence, seulement si c'est encore celle-ci : une
+ * création plus récente ne doit pas perdre la sienne.
+ */
+export async function releaseStripeAccountIdempotencyKey(
+  restaurantId: string,
+  idempotencyKey: string,
+): Promise<void> {
+  await ensureSchema();
+  await sql`
+    UPDATE restaurants
+    SET stripe_account_idempotency_key = NULL
+    WHERE id = ${restaurantId} AND stripe_account_idempotency_key = ${idempotencyKey}
   `;
 }
 

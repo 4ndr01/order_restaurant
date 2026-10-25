@@ -85,6 +85,14 @@ async function migrate(): Promise<void> {
   await sql`
     ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS stripe_account_mode text
   `;
+  // Clé d'idempotence de la création de compte en cours. Elle n'est conservée
+  // que tant que le résultat est inconnu (requête pas encore terminée, ou
+  // coupure). Une erreur Stripe l'efface : la réutiliser rejouerait cette
+  // erreur pendant 24 h, même une fois la cause corrigée.
+  await sql`
+    ALTER TABLE restaurants
+      ADD COLUMN IF NOT EXISTS stripe_account_idempotency_key text
+  `;
   await sql`
     UPDATE restaurants SET stripe_account_mode = 'test'
     WHERE stripe_account_id IS NOT NULL AND stripe_account_mode IS NULL
