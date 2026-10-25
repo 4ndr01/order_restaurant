@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { normalizeAllergens } from "./allergens";
 import { createId, ensureSchema, sql } from "./db";
+import { LAUNCH_PLAN, subscriptionOutranks } from "./plans";
 import { currentStripeMode, type StripeMode } from "./stripe-mode";
 import type {
   Category,
@@ -98,6 +99,11 @@ type RestaurantRow = {
   stripe_account_id: string | null;
   stripe_charges_enabled: boolean;
   stripe_account_mode: string | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  stripe_subscription_status: string | null;
+  stripe_billing_mode: string | null;
+  stripe_trial_consumed: boolean;
 };
 
 /**
@@ -111,6 +117,9 @@ function usableStripeAccount(accountId: string | null, mode: string | null): str
 
 function mapRestaurant(row: RestaurantRow): Restaurant {
   const stripeAccountId = usableStripeAccount(row.stripe_account_id, row.stripe_account_mode);
+  // Même règle que le compte connecté : un client de facturation créé en
+  // test n'existe pas avec la clé live, on fait comme s'il n'y en avait pas.
+  const billingHere = row.stripe_billing_mode === currentStripeMode();
   return {
     id: row.id,
     slug: row.slug,
@@ -119,6 +128,10 @@ function mapRestaurant(row: RestaurantRow): Restaurant {
     priceCents: row.price_cents,
     stripeAccountId,
     onlinePayment: Boolean(stripeAccountId) && row.stripe_charges_enabled,
+    stripeCustomerId: billingHere ? row.stripe_customer_id : null,
+    stripeSubscriptionId: billingHere ? row.stripe_subscription_id : null,
+    stripeSubscriptionStatus: billingHere ? row.stripe_subscription_status : null,
+    stripeTrialConsumed: billingHere && row.stripe_trial_consumed,
   };
 }
 
@@ -126,7 +139,8 @@ export async function getRestaurantBySlug(slug: string): Promise<Restaurant | nu
   await ensureSchema();
   const rows = await sql<RestaurantRow[]>`
     SELECT id, slug, name, plan, price_cents, stripe_account_id, stripe_charges_enabled,
-      stripe_account_mode
+      stripe_account_mode, stripe_customer_id, stripe_subscription_id,
+      stripe_subscription_status, stripe_billing_mode, stripe_trial_consumed
     FROM restaurants WHERE slug = ${slug}
   `;
   return rows[0] ? mapRestaurant(rows[0]) : null;
@@ -136,10 +150,143 @@ export async function getRestaurantById(id: string): Promise<Restaurant | null> 
   await ensureSchema();
   const rows = await sql<RestaurantRow[]>`
     SELECT id, slug, name, plan, price_cents, stripe_account_id, stripe_charges_enabled,
-      stripe_account_mode
+      stripe_account_mode, stripe_customer_id, stripe_subscription_id,
+      stripe_subscription_status, stripe_billing_mode, stripe_trial_consumed
     FROM restaurants WHERE id = ${id}
   `;
   return rows[0] ? mapRestaurant(rows[0]) : null;
+}
+
+export async function findRestaurantIdByStripeCustomer(customerId: string): Promise<string | null> {
+  await ensureSchema();
+  const [row] = await sql<{ id: string }[]>`
+    SELECT id FROM restaurants WHERE stripe_customer_id = ${customerId}
+  `;
+  return row?.id ?? null;
+}
+
+/**
+ * Enregistre le client de facturation avant la redirection vers Stripe.
+ * Ne touche pas à un abonnement déjà lié au même mode. Un changement de mode
+ * (test → live) remplace l'ancien client, qui n'existe pas dans le nouveau.
+ */
+export async function attachStripeCustomer(restaurantId: string, customerId: string): Promise<boolean> {
+  const mode = currentStripeMode();
+  if (!mode) return false;
+  await ensureSchema();
+  const rows = await sql<{ id: string }[]>`
+    UPDATE restaurants SET
+      stripe_customer_id = ${customerId},
+      stripe_billing_mode = ${mode},
+      stripe_subscription_id = CASE
+        WHEN stripe_billing_mode IS NOT DISTINCT FROM ${mode} THEN stripe_subscription_id
+        ELSE NULL
+      END,
+      stripe_subscription_status = CASE
+        WHEN stripe_billing_mode IS NOT DISTINCT FROM ${mode} THEN stripe_subscription_status
+        ELSE NULL
+      END,
+      stripe_trial_consumed = CASE
+        WHEN stripe_billing_mode IS NOT DISTINCT FROM ${mode} THEN stripe_trial_consumed
+        ELSE false
+      END,
+      plan = CASE
+        WHEN stripe_billing_mode IS NOT DISTINCT FROM ${mode} THEN plan
+        ELSE ${LAUNCH_PLAN.id}
+      END,
+      price_cents = CASE
+        WHEN stripe_billing_mode IS NOT DISTINCT FROM ${mode} THEN price_cents
+        ELSE ${LAUNCH_PLAN.priceCents}
+      END
+    WHERE id = ${restaurantId}
+      AND (
+        stripe_customer_id IS NULL
+        OR stripe_customer_id = ${customerId}
+        OR stripe_billing_mode IS DISTINCT FROM ${mode}
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM restaurants AS other
+        WHERE other.stripe_customer_id = ${customerId} AND other.id <> ${restaurantId}
+      )
+    RETURNING id
+  `;
+  return rows.length > 0;
+}
+
+/**
+ * Aligne le restaurant sur un abonnement du compte plateforme.
+ * Un événement en retard qui concerne un autre abonnement, déjà résilié,
+ * n'écrase pas l'abonnement en cours. `trialUsedNow` ne repasse jamais à faux.
+ */
+export async function saveRestaurantSubscription(input: {
+  restaurantId: string;
+  customerId: string;
+  subscriptionId: string | null;
+  status: string | null;
+  plan: string;
+  priceCents: number;
+  trialUsedNow: boolean;
+}): Promise<boolean> {
+  const mode = currentStripeMode();
+  if (!mode) return false;
+  await ensureSchema();
+  return sql.begin(async (tx) => {
+    await tx`SELECT pg_advisory_xact_lock(hashtext('billing:' || ${input.restaurantId}))`;
+    const [row] = await tx<
+      {
+        stripe_customer_id: string | null;
+        stripe_subscription_id: string | null;
+        stripe_subscription_status: string | null;
+        stripe_billing_mode: string | null;
+        stripe_trial_consumed: boolean;
+      }[]
+    >`
+      SELECT stripe_customer_id, stripe_subscription_id, stripe_subscription_status,
+        stripe_billing_mode, stripe_trial_consumed
+      FROM restaurants WHERE id = ${input.restaurantId}
+      FOR UPDATE
+    `;
+    if (!row) return false;
+
+    const sameMode = row.stripe_billing_mode === mode;
+    if (sameMode && row.stripe_customer_id && row.stripe_customer_id !== input.customerId) {
+      return false;
+    }
+    const [other] = await tx<{ id: string }[]>`
+      SELECT id FROM restaurants
+      WHERE stripe_customer_id = ${input.customerId} AND id <> ${input.restaurantId}
+    `;
+    if (other) return false;
+
+    const sameSubscription =
+      !row.stripe_subscription_id || row.stripe_subscription_id === input.subscriptionId;
+    const replace =
+      !sameMode || sameSubscription || subscriptionOutranks(input.status, row.stripe_subscription_status);
+    const trialConsumed = (sameMode && row.stripe_trial_consumed) || input.trialUsedNow;
+
+    if (!replace) {
+      if (trialConsumed && !row.stripe_trial_consumed) {
+        await tx`
+          UPDATE restaurants SET stripe_trial_consumed = true WHERE id = ${input.restaurantId}
+        `;
+      }
+      return true;
+    }
+
+    const updated = await tx<{ id: string }[]>`
+      UPDATE restaurants SET
+        stripe_customer_id = ${input.customerId},
+        stripe_subscription_id = ${input.subscriptionId},
+        stripe_subscription_status = ${input.status},
+        stripe_billing_mode = ${mode},
+        plan = ${input.plan},
+        price_cents = ${input.priceCents},
+        stripe_trial_consumed = ${trialConsumed}
+      WHERE id = ${input.restaurantId}
+      RETURNING id
+    `;
+    return updated.length > 0;
+  });
 }
 
 export async function getOwnerEmail(restaurantId: string, ownerId: string): Promise<string | null> {

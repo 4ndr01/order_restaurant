@@ -97,6 +97,24 @@ async function migrate(): Promise<void> {
     UPDATE restaurants SET stripe_account_mode = 'test'
     WHERE stripe_account_id IS NOT NULL AND stripe_account_mode IS NULL
   `;
+  // Abonnement Stripe Billing, sur le compte plateforme (pas le compte
+  // connecté qui encaisse les commandes). Vide tant que le restaurateur
+  // ne s'abonne pas : aucun restaurant existant n'est facturé par cette
+  // migration. stripe_billing_mode distingue un client de test d'un client
+  // live. stripe_trial_consumed empêche d'offrir l'essai une seconde fois.
+  await sql`
+    ALTER TABLE restaurants
+      ADD COLUMN IF NOT EXISTS stripe_customer_id text,
+      ADD COLUMN IF NOT EXISTS stripe_subscription_id text,
+      ADD COLUMN IF NOT EXISTS stripe_subscription_status text,
+      ADD COLUMN IF NOT EXISTS stripe_billing_mode text,
+      ADD COLUMN IF NOT EXISTS stripe_trial_consumed boolean NOT NULL DEFAULT false
+  `;
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS restaurants_stripe_customer_id_idx
+      ON restaurants (stripe_customer_id)
+      WHERE stripe_customer_id IS NOT NULL
+  `;
   await sql`
     CREATE TABLE IF NOT EXISTS restaurant_owners (
       id text PRIMARY KEY,
