@@ -118,6 +118,10 @@ export async function signup(
       priceCents: CURRENT_PLAN.priceCents,
       stripeAccountId: null,
       onlinePayment: false,
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      stripeSubscriptionStatus: null,
+      stripeTrialConsumed: false,
     },
     session,
   };

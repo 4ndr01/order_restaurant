@@ -10,6 +10,17 @@ export type Restaurant = {
   stripeAccountId: string | null;
   /** Vrai quand Stripe autorise ce compte à encaisser : le client paie alors en ligne. */
   onlinePayment: boolean;
+  /**
+   * Client Stripe Billing sur le compte plateforme, null tant que le
+   * restaurateur n'a pas ouvert la page de souscription. Ignoré si son mode
+   * (test / live) n'est pas celui de la clé actuelle.
+   */
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  /** Statut Stripe brut (`trialing`, `active`, `past_due`, `canceled`, …). */
+  stripeSubscriptionStatus: string | null;
+  /** Vrai dès qu'un essai a réellement commencé : il ne sera pas réoffert. */
+  stripeTrialConsumed: boolean;
 };
 
 export type Category = {

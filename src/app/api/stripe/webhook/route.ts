@@ -1,5 +1,10 @@
 import type Stripe from "stripe";
 import { resolveBaseUrl } from "@/lib/base-url";
+import {
+  applyPlatformSubscriptionCheckout,
+  syncPlatformInvoicePaymentFailed,
+  syncPlatformSubscription,
+} from "@/lib/billing";
 import { applyAccountUpdate, applyCheckoutSession } from "@/lib/payments";
 import { getRestaurantById } from "@/lib/repo";
 import { getStripe, webhookSecret } from "@/lib/stripe";
@@ -7,9 +12,11 @@ import { getStripe, webhookSecret } from "@/lib/stripe";
 export const dynamic = "force-dynamic";
 
 /**
- * Notifications Stripe des comptes connectés (paiements et inscriptions des
- * restaurants). Seuls les messages signés par Stripe sont acceptés ; une
- * réponse en erreur fait que Stripe renvoie le message plus tard.
+ * Notifications Stripe signées. Deux origines, un seul endpoint :
+ * - les comptes connectés (`event.account` renseigné) : paiement des commandes
+ *   et inscription Connect ;
+ * - le compte plateforme (pas de `event.account`) : abonnement des restaurants.
+ * Une réponse en erreur fait que Stripe renvoie le message plus tard.
  */
 export async function POST(request: Request) {
   const secret = webhookSecret();
@@ -37,11 +44,19 @@ export async function POST(request: Request) {
     case "checkout.session.async_payment_succeeded":
     case "checkout.session.expired": {
       const session = event.data.object;
+      if (!event.account) {
+        // Compte plateforme. Les commandes, elles, sont payées sur le compte
+        // connecté du restaurant et portent `event.account`.
+        if (session.mode === "subscription" && event.type !== "checkout.session.expired") {
+          await applyPlatformSubscriptionCheckout(session);
+        }
+        break;
+      }
       const restaurantId = session.metadata?.restaurant_id;
       const restaurant = restaurantId ? await getRestaurantById(restaurantId) : null;
       // Le paiement doit venir du compte Stripe de ce restaurant précis : un
       // autre compte connecté ne peut pas valider les commandes d'un voisin.
-      if (!restaurant || !event.account || restaurant.stripeAccountId !== event.account) {
+      if (!restaurant || restaurant.stripeAccountId !== event.account) {
         console.error(`Notification Stripe ${event.id} sans restaurant correspondant, ignorée.`);
         break;
       }
@@ -49,7 +64,20 @@ export async function POST(request: Request) {
       await applyCheckoutSession(restaurant, session, baseUrl);
       break;
     }
+    case "customer.subscription.created":
+    case "customer.subscription.updated":
+    case "customer.subscription.deleted": {
+      if (event.account) break;
+      await syncPlatformSubscription(event.data.object.id, event.data.object);
+      break;
+    }
+    case "invoice.payment_failed": {
+      if (event.account) break;
+      await syncPlatformInvoicePaymentFailed(event.data.object);
+      break;
+    }
     case "account.updated":
+      if (!event.account) break;
       await applyAccountUpdate(event.data.object);
       break;
     default:
