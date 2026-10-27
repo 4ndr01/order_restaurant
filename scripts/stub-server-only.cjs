@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- chargeur CommonJS : require est obligatoire ici. */
 const Module = require("node:module");
 const path = require("node:path");
 
