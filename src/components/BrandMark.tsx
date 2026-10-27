@@ -1,0 +1,27 @@
+/**
+ * Monogramme WGK du logo : carré crème #fcf6ea, lettres vert #1f452e.
+ * Le fichier d'onglet reprend le même dessin : src/app/icon.svg.
+ */
+export default function BrandMark({ className = "h-8 w-8 shrink-0" }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 64 64"
+      className={className}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect width="64" height="64" rx="16" fill="#fcf6ea" />
+      <g fill="#1f452e">
+        <path d="M3.95 22.44L9.15 44.11L12.85 43.22L7.65 21.56Z" />
+        <path d="M13.35 21.57L8.37 43.24L12.07 44.09L17.05 22.43Z" />
+        <path d="M16.78 22.55L23.27 44.18L26.91 43.09L20.42 21.45Z" />
+        <path d="M28.17 21.5L22.32 43.16L25.99 44.15L31.83 22.5Z" />
+        <path d="M31.2 22L43 22L43 25.8L35 25.8L35 32L43.6 32L43.6 35.8L35 35.8L35 38.2L43 38.2L43 42L31.2 42Z" />
+        <path d="M46 22L49.8 22L49.8 42L46 42Z" />
+        <path d="M48.89 34.09L59.74 23.35L57.06 20.65L46.21 31.38Z" />
+        <path d="M46.21 32.62L57.06 43.35L59.74 40.65L48.89 29.91Z" />
+      </g>
+    </svg>
+  );
+}

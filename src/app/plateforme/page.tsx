@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import PlatformLogoutButton from "@/components/PlatformLogoutButton";
 import { BRAND_NAME } from "@/lib/brand";
+import { privatePageMetadata } from "@/lib/seo";
 import { formatPrice } from "@/lib/format";
 import { getPlatformAdmin } from "@/lib/platform-auth";
 import { getPlatformOverview, type PlatformRestaurant } from "@/lib/repo";
@@ -10,10 +11,7 @@ import { currentStripeMode } from "@/lib/stripe-mode";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Administration",
-  robots: { index: false, follow: false },
-};
+export const metadata: Metadata = privatePageMetadata("Vue d'ensemble");
 
 const STRIPE_BADGES: Record<PlatformRestaurant["stripeStatus"], { label: string; className: string }> = {
   actif: { label: "Paiement en ligne actif", className: "bg-emerald-100 text-emerald-800" },

@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { BRAND_NAME } from "@/lib/brand";
 import { ANNOUNCED_PLAN, TRIAL_PERIOD_DAYS, formatPlanPrice } from "@/lib/plans";
@@ -6,8 +8,9 @@ export const alt = `${BRAND_NAME} : commande à table, payée sur votre compte S
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function OpenGraphImage() {
+export default async function OpenGraphImage() {
   const price = formatPlanPrice(ANNOUNCED_PLAN.priceCents);
+  const mark = await readFile(join(process.cwd(), "public/brand/mark-192.png"));
 
   return new ImageResponse(
     (
@@ -23,8 +26,16 @@ export default function OpenGraphImage() {
           padding: "72px",
         }}
       >
-        <div style={{ display: "flex", fontSize: 36, fontWeight: 800, color: "#1f4d36" }}>
-          {BRAND_NAME}
+        <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
+          <img
+            src={`data:image/png;base64,${mark.toString("base64")}`}
+            alt=""
+            width={88}
+            height={88}
+          />
+          <div style={{ display: "flex", fontSize: 36, fontWeight: 800, color: "#1f4d36" }}>
+            {BRAND_NAME}
+          </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div

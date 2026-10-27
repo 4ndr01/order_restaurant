@@ -4,8 +4,13 @@ import LegalPage, { Fill, Section } from "@/components/LegalPage";
 import { BRAND_NAME } from "@/lib/brand";
 import { LEGAL } from "@/lib/legal";
 import { ANNOUNCED_PLAN, TRIAL_PERIOD_DAYS, formatPlanPrice } from "@/lib/plans";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: `Conditions d'utilisation : ${BRAND_NAME}` };
+export const metadata: Metadata = publicPageMetadata({
+  title: "Conditions générales d'utilisation",
+  description: `Règles d'utilisation de ${BRAND_NAME} : compte restaurant, essai de ${TRIAL_PERIOD_DAYS} jours, abonnement ${formatPlanPrice(ANNOUNCED_PLAN.priceCents)}, commandes et paiement en ligne.`,
+  path: "/cgu",
+});
 
 const linkClass = "font-semibold text-brand underline";
 

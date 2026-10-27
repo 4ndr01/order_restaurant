@@ -13,9 +13,29 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000" },
 ];
 
+// Filet pour les robots qui ignorent la balise meta. Les pages HTML
+// portent le même noindex dans leurs métadonnées.
+const noindexHeader = { key: "X-Robots-Tag", value: "noindex, nofollow" };
+
+const NOINDEX_SOURCES = [
+  "/api/:path*",
+  "/plateforme",
+  "/plateforme/:path*",
+  "/mot-de-passe-oublie",
+  "/reinitialiser-mot-de-passe/:path*",
+  "/r/:slug/admin",
+  "/r/:slug/admin/:path*",
+  "/r/:slug/table/:path*",
+  "/r/:slug/commande/:path*",
+  "/r/:slug/menu",
+];
+
 const nextConfig: NextConfig = {
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      ...NOINDEX_SOURCES.map((source) => ({ source, headers: [noindexHeader] })),
+    ];
   },
 };
 
