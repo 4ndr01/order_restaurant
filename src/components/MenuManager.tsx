@@ -268,7 +268,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={item.photoUrl}
-                              alt=""
+                              alt={`Photo de ${item.name}`}
                               width={64}
                               height={64}
                               loading="lazy"

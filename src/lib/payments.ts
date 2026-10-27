@@ -1,20 +1,28 @@
 import "server-only";
 import type Stripe from "stripe";
+import { OrderingClosedError, orderingRefusal } from "./access";
 import { sendOrderReceipt } from "./order-receipt";
 import {
   attachCheckoutSession,
+  claimStripeAccountCreation,
   getOrder,
   getOrderCheckoutSessionId,
   getOrderPaymentIntentId,
+  getRestaurantById,
   markOrderPaid,
   markOrderPaymentExpired,
   markOrderRefunded,
+  releaseStripeAccountIdempotencyKey,
   setRestaurantStripeAccount,
   setStripeChargesEnabled,
   unlinkStripeAccount,
 } from "./repo";
 import { getStripe, toCents } from "./stripe";
-import { currentStripeMode } from "./stripe-mode";
+import {
+  accountCreationIdempotencyAction,
+  isIdempotentReplay,
+} from "./stripe-error";
+import { currentStripeMode, type StripeMode } from "./stripe-mode";
 import type { Order, Restaurant } from "./types";
 
 // Durée minimale acceptée par Stripe pour une page de paiement.
@@ -32,14 +40,18 @@ function orderUrl(baseUrl: string, restaurant: Restaurant, orderId: string): str
 const RETRY_WINDOW_MS = 10 * 60_000;
 
 /**
- * Clé anti-doublon (idempotence) valable dix minutes. Stripe mémorise pendant
- * 24 h la réponse associée à une clé, erreurs comprises : avec une clé fixe,
- * une demande refusée une fois (compte pas encore activé, solde insuffisant
- * pour rembourser…) renverrait la même erreur pendant une journée, même une
- * fois le problème réglé. Un double clic reste dédoublonné.
+ * Clé anti-doublon valable dix minutes, pour un remboursement : Stripe refuse
+ * un second remboursement au-delà du montant payé, donc une nouvelle clé plus
+ * tard ne paie pas deux fois. Elle ne sert pas à créer un compte : Stripe
+ * mémorise aussi les erreurs pendant 24 h, et une fenêtre de dix minutes
+ * bloquerait chaque nouvel essai après un refus.
  */
 function idempotencyKey(base: string): string {
   return `${base}-${Math.floor(Date.now() / RETRY_WINDOW_MS)}`;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ---- Compte Stripe du restaurateur ----
@@ -75,6 +87,14 @@ export async function forgetUnreachableAccount(
   return true;
 }
 
+// Un seul appel Stripe par processus pour un restaurant : le second clic
+// attend le premier au lieu d'en lancer un autre. Les autres instances
+// passent par la clé réservée en base.
+const connectedAccountCreations = new Map<string, Promise<string>>();
+
+// Quand Stripe répond qu'une création avec la même clé est encore en cours.
+const CREATION_IN_PROGRESS_WAITS_MS = [300, 600, 1200, 2000, 2000];
+
 /**
  * Crée le compte Stripe du restaurant s'il n'existe pas encore. Stripe porte
  * le risque des impayés et le restaurateur paie ses propres frais : la
@@ -83,7 +103,6 @@ export async function forgetUnreachableAccount(
 export async function ensureConnectedAccount(
   restaurant: Restaurant,
   ownerEmail: string | null,
-  replacing?: string,
 ): Promise<string> {
   if (restaurant.stripeAccountId) {
     return restaurant.stripeAccountId;
@@ -92,27 +111,88 @@ export async function ensureConnectedAccount(
   if (!mode) {
     throw new Error("STRIPE_SECRET_KEY manquant.");
   }
-  const account = await getStripe().accounts.create(
-    {
-      country: "FR",
-      email: ownerEmail ?? undefined,
-      controller: {
-        fees: { payer: "account" },
-        losses: { payments: "stripe" },
-        stripe_dashboard: { type: "full" },
-      },
-      business_profile: { name: restaurant.name, mcc: RESTAURANT_MCC },
-      metadata: { restaurant_id: restaurant.id },
-    },
-    // Un second clic rapproché reçoit le compte déjà créé au lieu d'en
-    // ouvrir un second.
-    {
-      idempotencyKey: idempotencyKey(
-        `account-${mode}-${restaurant.id}${replacing ? `-${replacing}` : ""}`,
-      ),
-    },
-  );
-  return setRestaurantStripeAccount(restaurant.id, account.id, mode);
+
+  const flightKey = `${mode}:${restaurant.id}`;
+  const pending = connectedAccountCreations.get(flightKey);
+  if (pending) {
+    return pending;
+  }
+
+  const creation = createConnectedAccount(restaurant, ownerEmail, mode);
+  connectedAccountCreations.set(flightKey, creation);
+  try {
+    return await creation;
+  } finally {
+    if (connectedAccountCreations.get(flightKey) === creation) {
+      connectedAccountCreations.delete(flightKey);
+    }
+  }
+}
+
+async function createConnectedAccount(
+  restaurant: Restaurant,
+  ownerEmail: string | null,
+  mode: StripeMode,
+): Promise<string> {
+  try {
+    return await createConnectedAccountOnce(restaurant, ownerEmail, mode);
+  } catch (error) {
+    // Réponse déjà mémorisée par Stripe : la clé vient d'être oubliée, un
+    // second essai dans la même demande part vraiment et renvoie l'erreur
+    // actuelle, pas celle d'il y a quelques minutes.
+    if (isIdempotentReplay(error) && accountCreationIdempotencyAction(error) === "forget") {
+      return createConnectedAccountOnce(restaurant, ownerEmail, mode);
+    }
+    throw error;
+  }
+}
+
+async function createConnectedAccountOnce(
+  restaurant: Restaurant,
+  ownerEmail: string | null,
+  mode: StripeMode,
+): Promise<string> {
+  const claim = await claimStripeAccountCreation(restaurant.id, mode);
+  if ("accountId" in claim) {
+    return claim.accountId;
+  }
+  const { idempotencyKey } = claim;
+
+  for (let waited = 0; ; waited++) {
+    try {
+      const account = await getStripe().accounts.create(
+        {
+          country: "FR",
+          email: ownerEmail ?? undefined,
+          controller: {
+            fees: { payer: "account" },
+            losses: { payments: "stripe" },
+            stripe_dashboard: { type: "full" },
+          },
+          business_profile: { name: restaurant.name, mcc: RESTAURANT_MCC },
+          metadata: { restaurant_id: restaurant.id },
+        },
+        { idempotencyKey },
+      );
+      const saved = await setRestaurantStripeAccount(restaurant.id, account.id, mode);
+      await releaseStripeAccountIdempotencyKey(restaurant.id, idempotencyKey);
+      return saved;
+    } catch (error) {
+      const action = accountCreationIdempotencyAction(error);
+      if (action === "wait" && waited < CREATION_IN_PROGRESS_WAITS_MS.length) {
+        await delay(CREATION_IN_PROGRESS_WAITS_MS[waited]);
+        const current = await getRestaurantById(restaurant.id);
+        if (current?.stripeAccountId) return current.stripeAccountId;
+        continue;
+      }
+      if (action === "forget") {
+        await releaseStripeAccountIdempotencyKey(restaurant.id, idempotencyKey);
+        const current = await getRestaurantById(restaurant.id);
+        if (current?.stripeAccountId) return current.stripeAccountId;
+      }
+      throw error;
+    }
+  }
 }
 
 /**
@@ -134,7 +214,6 @@ export async function openOnboarding(
     const fresh = await ensureConnectedAccount(
       { ...restaurant, stripeAccountId: null },
       ownerEmail,
-      accountId,
     );
     return createOnboardingLink(fresh, baseUrl, restaurant.slug);
   }
@@ -146,6 +225,8 @@ export async function createOnboardingLink(
   slug: string,
 ): Promise<string> {
   const paymentsPage = `${baseUrl}/r/${slug}/admin/paiements`;
+  // Inscription hébergée par Stripe. Pour une plateforme française, le
+  // formulaire intégré dans la page ne remplace pas ce lien.
   const link = await getStripe().accountLinks.create({
     account: accountId,
     type: "account_onboarding",
@@ -175,6 +256,10 @@ export async function createCheckoutForOrder(
   order: Order,
   baseUrl: string,
 ): Promise<string> {
+  const refusal = orderingRefusal(restaurant);
+  if (refusal) {
+    throw new OrderingClosedError(refusal);
+  }
   if (!restaurant.stripeAccountId) {
     throw new Error("Ce restaurant n'a pas de compte Stripe.");
   }

@@ -57,11 +57,11 @@ Créer un compte crée aussi le restaurant associé (nom, slug unique, menu de d
 
 ## Les QR codes
 
-Sur `.../admin/tables`, chaque table affiche son QR code, généré côté serveur en PNG, pointant vers `/r/<slug>/table/<id>`. Le champ « Adresse publique du site » définit l'URL encodée : mettez-y le domaine réel avant d'imprimer, sinon les QR pointeront vers l'adresse depuis laquelle vous consultez la page.
+Sur `.../admin/tables`, chaque table affiche son QR code, généré côté serveur en PNG, pointant vers `/r/<slug>/table/<id>`. Le champ « Adresse publique du site » définit l'URL encodée. En production il est prérempli avec `https://wegood.kim` (ou avec `NEXT_PUBLIC_BASE_URL` si cette variable est définie au build). En local, sans cette variable, l'adresse est celle de la requête.
 
 Le bouton **Imprimer les QR codes** ouvre une mise en page épurée (2 QR codes par ligne, sans la navigation) à découper et poser sur les tables.
 
-Pour figer l'adresse une fois pour toutes, définissez `NEXT_PUBLIC_BASE_URL`.
+Les pages ouvertes sur `https://order-restaurant-1.onrender.com` répondent par une redirection permanente vers `https://wegood.kim`. Les routes `/api`, dont le webhook Stripe, restent disponibles sur les deux hôtes.
 
 ## Authentification
 

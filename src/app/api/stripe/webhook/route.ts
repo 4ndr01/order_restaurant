@@ -1,20 +1,35 @@
-import type Stripe from "stripe";
 import { resolveBaseUrl } from "@/lib/base-url";
+import {
+  applyPlatformSubscriptionCheckout,
+  syncPlatformInvoicePaymentFailed,
+  syncPlatformSubscription,
+} from "@/lib/billing";
 import { applyAccountUpdate, applyCheckoutSession } from "@/lib/payments";
 import { getRestaurantById } from "@/lib/repo";
-import { getStripe, webhookSecret } from "@/lib/stripe";
+import { webhookSecrets } from "@/lib/stripe";
+import { constructEventWithSecrets } from "@/lib/webhook-signature";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Notifications Stripe des comptes connectés (paiements et inscriptions des
- * restaurants). Seuls les messages signés par Stripe sont acceptés ; une
- * réponse en erreur fait que Stripe renvoie le message plus tard.
+ * Notifications Stripe signées. Deux endpoints, la même URL : Stripe n'écoute
+ * qu'une origine par endpoint. Adresse canonique :
+ * https://wegood.kim/api/stripe/webhook. L'hôte onrender.com reste accepté
+ * (aucune redirection sur `/api`) tant que le tableau de bord Stripe pointe
+ * encore vers lui.
+ * - STRIPE_WEBHOOK_SECRET : comptes connectés (`event.account` renseigné),
+ *   paiement des commandes et inscription Connect.
+ * - STRIPE_WEBHOOK_SECRET_PLATFORM : compte plateforme (pas de `event.account`),
+ *   abonnement des restaurants.
+ * Une réponse en erreur fait que Stripe renvoie le message plus tard.
  */
 export async function POST(request: Request) {
-  const secret = webhookSecret();
-  if (!secret) {
-    console.error("STRIPE_WEBHOOK_SECRET manquant : notification Stripe ignorée.");
+  const secrets = webhookSecrets();
+  if (secrets.length === 0) {
+    console.error(
+      "Aucun secret de webhook Stripe : STRIPE_WEBHOOK_SECRET (comptes connectés) " +
+        "ou STRIPE_WEBHOOK_SECRET_PLATFORM (abonnement).",
+    );
     return Response.json({ error: "Webhook non configuré." }, { status: 500 });
   }
 
@@ -23,12 +38,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "Signature manquante." }, { status: 400 });
   }
 
-  let event: Stripe.Event;
-  try {
-    // Le corps doit rester exactement celui envoyé par Stripe pour que la
-    // signature corresponde : on le lit en texte brut, sans le parser.
-    event = getStripe().webhooks.constructEvent(await request.text(), signature, secret);
-  } catch {
+  // Le corps doit rester exactement celui envoyé par Stripe pour que la
+  // signature corresponde : on le lit en texte brut, sans le parser.
+  const event = constructEventWithSecrets(await request.text(), signature, secrets);
+  if (!event) {
     return Response.json({ error: "Signature invalide." }, { status: 400 });
   }
 
@@ -37,11 +50,19 @@ export async function POST(request: Request) {
     case "checkout.session.async_payment_succeeded":
     case "checkout.session.expired": {
       const session = event.data.object;
+      if (!event.account) {
+        // Compte plateforme. Les commandes, elles, sont payées sur le compte
+        // connecté du restaurant et portent `event.account`.
+        if (session.mode === "subscription" && event.type !== "checkout.session.expired") {
+          await applyPlatformSubscriptionCheckout(session);
+        }
+        break;
+      }
       const restaurantId = session.metadata?.restaurant_id;
       const restaurant = restaurantId ? await getRestaurantById(restaurantId) : null;
       // Le paiement doit venir du compte Stripe de ce restaurant précis : un
       // autre compte connecté ne peut pas valider les commandes d'un voisin.
-      if (!restaurant || !event.account || restaurant.stripeAccountId !== event.account) {
+      if (!restaurant || restaurant.stripeAccountId !== event.account) {
         console.error(`Notification Stripe ${event.id} sans restaurant correspondant, ignorée.`);
         break;
       }
@@ -49,7 +70,20 @@ export async function POST(request: Request) {
       await applyCheckoutSession(restaurant, session, baseUrl);
       break;
     }
+    case "customer.subscription.created":
+    case "customer.subscription.updated":
+    case "customer.subscription.deleted": {
+      if (event.account) break;
+      await syncPlatformSubscription(event.data.object.id, event.data.object);
+      break;
+    }
+    case "invoice.payment_failed": {
+      if (event.account) break;
+      await syncPlatformInvoicePaymentFailed(event.data.object);
+      break;
+    }
     case "account.updated":
+      if (!event.account) break;
       await applyAccountUpdate(event.data.object);
       break;
     default:

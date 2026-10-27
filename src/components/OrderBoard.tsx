@@ -157,7 +157,7 @@ export default function OrderBoard({
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={item.photoUrl}
-                            alt=""
+                            alt={item.name}
                             width={88}
                             height={88}
                             loading="lazy"

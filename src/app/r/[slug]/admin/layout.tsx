@@ -1,6 +1,11 @@
 import Link from "next/link";
+import AdminAccessBanner from "@/components/AdminAccessBanner";
+import BrandMark from "@/components/BrandMark";
 import LogoutButton from "@/components/LogoutButton";
+import { accessForRestaurant } from "@/lib/access";
+import { getSession } from "@/lib/auth";
 import { BRAND_NAME } from "@/lib/brand";
+import { getRestaurantById } from "@/lib/repo";
 
 export default async function AdminLayout({
   children,
@@ -10,6 +15,15 @@ export default async function AdminLayout({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const session = await getSession();
+  const restaurant = session ? await getRestaurantById(session.restaurantId) : null;
+  const access = restaurant ? accessForRestaurant(restaurant) : null;
+  const banner =
+    access && access.phase === "trial"
+      ? { phase: "trial" as const, daysLeft: access.trialDaysLeft }
+      : access && access.phase === "past_due"
+        ? { phase: "past_due" as const, daysLeft: access.graceDaysLeft }
+        : null;
   const base = `/r/${slug}/admin`;
   const LINKS = [
     { href: base, label: "Tableau de bord" },
@@ -24,10 +38,13 @@ export default async function AdminLayout({
     <div className="flex min-h-full flex-1 flex-col">
       <header className="print-hidden sticky top-0 z-20 bg-background/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 pt-4">
-          <span className="flex items-baseline gap-2">
-            <span className="text-base font-extrabold tracking-tight">{BRAND_NAME}</span>
-            <span className="text-xs font-bold uppercase tracking-[0.18em] text-brand">
-              Espace restaurant
+          <span className="flex items-center gap-2">
+            <BrandMark className="h-7 w-7 shrink-0" />
+            <span className="flex items-baseline gap-2">
+              <span className="text-base font-extrabold tracking-tight">{BRAND_NAME}</span>
+              <span className="text-xs font-bold uppercase tracking-[0.18em] text-brand">
+                Espace restaurant
+              </span>
             </span>
           </span>
           <div className="flex items-center gap-1">
@@ -52,6 +69,7 @@ export default async function AdminLayout({
           ))}
         </nav>
       </header>
+      {banner ? <AdminAccessBanner slug={slug} phase={banner.phase} daysLeft={banner.daysLeft} /> : null}
       {children}
     </div>
   );

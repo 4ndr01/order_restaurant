@@ -1,5 +1,8 @@
 import "server-only";
 import Stripe from "stripe";
+import { collectWebhookSecrets } from "./webhook-signature";
+
+export { describeStripeError } from "./stripe-error";
 
 /**
  * Client Stripe de la plateforme, créé à la première utilisation : comme pour
@@ -19,8 +22,17 @@ function secretKey(): string {
   return process.env.STRIPE_SECRET_KEY?.trim() ?? "";
 }
 
-export function webhookSecret(): string {
-  return process.env.STRIPE_WEBHOOK_SECRET?.trim() ?? "";
+/**
+ * Secrets des deux endpoints qui partagent l'URL /api/stripe/webhook.
+ * Stripe n'écoute qu'une origine par endpoint (`connect: true` ou `false`),
+ * donc chacun a son secret : comptes connectés, puis compte plateforme.
+ * Le second est optionnel tant que l'abonnement n'est pas activé.
+ */
+export function webhookSecrets(): string[] {
+  return collectWebhookSecrets(
+    process.env.STRIPE_WEBHOOK_SECRET,
+    process.env.STRIPE_WEBHOOK_SECRET_PLATFORM,
+  );
 }
 
 export function isStripeConfigured(): boolean {
@@ -60,42 +72,4 @@ function testServerOptions(): Pick<Stripe.StripeConfig, "host" | "port" | "proto
 
 export function toCents(amount: number): number {
   return Math.round(amount * 100);
-}
-
-/**
- * Traduit une erreur Stripe en message compréhensible. Seule une vraie panne
- * réseau est présentée comme passagère : une erreur de configuration doit se
- * voir telle quelle, sinon on la cherche au mauvais endroit.
- */
-export function describeStripeError(error: unknown): string {
-  const type = (error as { type?: unknown })?.type;
-  switch (type) {
-    case "StripeConnectionError": {
-      // Le détail distingue une vraie coupure d'un problème de configuration
-      // (par exemple un caractère invalide dans la clé).
-      const detail = (error as { detail?: { message?: unknown } }).detail?.message;
-      return (
-        "Connexion à Stripe impossible. Réessayez dans un instant." +
-        (typeof detail === "string" ? ` (détail : ${detail})` : "")
-      );
-    }
-    case "StripeAPIError":
-    case "StripeRateLimitError":
-      return "Stripe est momentanément injoignable. Réessayez dans un instant.";
-    case "StripeAuthenticationError":
-      return (
-        "La clé Stripe de la plateforme est refusée : vérifiez que STRIPE_SECRET_KEY contient " +
-        "bien la clé secrète (sk_test_… ou sk_live_…)."
-      );
-    case "StripePermissionError":
-      return (
-        "La clé Stripe de la plateforme n'a pas les droits nécessaires : utilisez la clé " +
-        `secrète (sk_…), pas une clé restreinte (rk_…). Réponse de Stripe : ${(error as Error).message}`
-      );
-    case "StripeInvalidRequestError":
-    case "StripeIdempotencyError":
-      return `Stripe a refusé la demande : ${(error as Error).message}`;
-    default:
-      return "Une erreur inattendue est survenue avec Stripe. Réessayez dans un instant.";
-  }
 }

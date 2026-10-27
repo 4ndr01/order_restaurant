@@ -3,9 +3,14 @@ import Link from "next/link";
 import LegalPage, { Fill, Section } from "@/components/LegalPage";
 import { BRAND_NAME } from "@/lib/brand";
 import { LEGAL } from "@/lib/legal";
-import { ANNOUNCED_PLAN, formatPlanPrice } from "@/lib/plans";
+import { ANNOUNCED_PLAN, TRIAL_PERIOD_DAYS, formatPlanPrice } from "@/lib/plans";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: `Conditions d'utilisation — ${BRAND_NAME}` };
+export const metadata: Metadata = publicPageMetadata({
+  title: "Conditions générales d'utilisation",
+  description: `Règles d'utilisation de ${BRAND_NAME} : compte restaurant, essai de ${TRIAL_PERIOD_DAYS} jours, abonnement ${formatPlanPrice(ANNOUNCED_PLAN.priceCents)}, commandes et paiement en ligne.`,
+  path: "/cgu",
+});
 
 const linkClass = "font-semibold text-brand underline";
 
@@ -40,14 +45,18 @@ export default function TermsPage() {
 
       <Section title="3. Tarifs">
         <p>
-          Pendant la phase de lancement, {BRAND_NAME} est gratuit, sans limite de durée ni carte
-          bancaire. Le tarif prévu ensuite est de {formatPlanPrice(ANNOUNCED_PLAN.priceCents)},
-          sans engagement.
+          L&apos;inscription est gratuite et ne demande pas de carte bancaire. Elle ouvre un essai
+          de {TRIAL_PERIOD_DAYS} jours pendant lequel le service est complet. À la fin de cet
+          essai, les commandes en ligne sont mises en pause tant que le Restaurant n&apos;a pas
+          souscrit l&apos;abonnement {ANNOUNCED_PLAN.label} ({formatPlanPrice(ANNOUNCED_PLAN.priceCents)}).
         </p>
         <p>
-          Tout passage à une formule payante est annoncé au Restaurant par email au moins 30
-          jours à l&apos;avance. Il peut alors cesser d&apos;utiliser le service sans frais. Aucun
-          montant ne lui est prélevé sans son accord explicite.
+          Aucun montant n&apos;est prélevé sans cette souscription. S&apos;abonner pendant
+          l&apos;essai conserve les jours restants : le premier prélèvement a lieu à la fin de
+          l&apos;essai. Une fois l&apos;essai terminé, le prélèvement a lieu le jour de la
+          souscription. L&apos;abonnement est sans engagement et se résilie depuis le portail
+          Stripe. Le menu, les données et les réglages du Restaurant sont conservés pendant la
+          pause.
         </p>
       </Section>
 

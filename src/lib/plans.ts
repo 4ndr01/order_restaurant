@@ -1,10 +1,20 @@
 /**
  * Source unique des tarifs de la plateforme.
  *
- * Aujourd'hui tous les restaurants sont sur le plan « lancement » à 0 €, sans
- * limite de durée. Le jour où vous activez la facturation, c'est ici que ça se
- * décide : passez `CURRENT_PLAN` sur `PAID_PLAN` (et branchez Stripe pour
- * encaisser réellement).
+ * Les nouveaux restaurants restent sur le plan « lancement » (0 €) pendant
+ * l'essai. Rien n'est prélevé tout seul : le restaurateur s'abonne lui-même
+ * depuis la page Abonnement, via Stripe Billing sur le compte plateforme
+ * (pas sur son compte connecté). Le Price Stripe correspondant est
+ * `STRIPE_PRICE_ID`, un prix récurrent de `PAID_PLAN.priceCents` centimes
+ * EUR par mois. L'essai (`TRIAL_PERIOD_DAYS`) commence à l'inscription et
+ * est stocké sur le restaurant. Checkout ne reçoit un `trial_end` que pour
+ * les jours encore devant, jamais un second essai de 14 jours.
+ *
+ * L'exigence d'abonnement est activée par défaut. `BILLING_ENFORCED=false`
+ * (ou `0`, `off`, `non`) la coupe. `isBillingEnforced()` dans
+ * `src/lib/access.ts` est le seul endroit qui lit cette variable.
+ * `describeAccess()` s'en sert pour refuser les nouvelles commandes une fois
+ * l'essai terminé, sans abonnement ouvert. La page Abonnement reste accessible.
  */
 
 export type Plan = {
@@ -25,11 +35,17 @@ export const PAID_PLAN: Plan = {
   priceCents: 2900,
 };
 
-/** Plan attribué aux nouveaux restaurants à l'inscription. */
+/** Durée de l'essai gratuit ouvert à l'inscription, en jours. */
+export const TRIAL_PERIOD_DAYS = 14;
+
+/** Plan attribué aux nouveaux restaurants à l'inscription. Jamais le plan payant. */
 export const CURRENT_PLAN = LAUNCH_PLAN;
 
 /** Tarif annoncé pour l'après-lancement, affiché sur les pages publiques. */
 export const ANNOUNCED_PLAN = PAID_PLAN;
+
+/** Nom de la variable qui peut désactiver l'exigence d'abonnement. Défaut : activée. */
+export const BILLING_ENFORCED_ENV = "BILLING_ENFORCED";
 
 const euro = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -40,4 +56,81 @@ const euro = new Intl.NumberFormat("fr-FR", {
 
 export function formatPlanPrice(priceCents: number): string {
   return priceCents === 0 ? "Gratuit" : `${euro.format(priceCents / 100)}/mois`;
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  trialing: "Essai",
+  active: "Actif",
+  past_due: "Impayé",
+  unpaid: "Impayé",
+  canceled: "Résilié",
+  incomplete_expired: "Résilié",
+  incomplete: "En attente de paiement",
+  paused: "En pause",
+};
+
+/** Libellé français du statut Stripe, ou null s'il n'y a pas d'abonnement. */
+export function subscriptionStatusLabel(status: string | null | undefined): string | null {
+  if (!status) return null;
+  return STATUS_LABELS[status] ?? "Inconnu";
+}
+
+/**
+ * Le restaurant est engagé sur la formule payante : essai, actif, ou prélèvement
+ * en échec (Stripe retente). Un abonnement résilié ou incomplet ne l'est pas.
+ */
+export function subscriptionKeepsPaidPlan(status: string | null | undefined): boolean {
+  return (
+    status === "trialing" ||
+    status === "active" ||
+    status === "past_due" ||
+    status === "unpaid" ||
+    status === "paused"
+  );
+}
+
+export function planForSubscriptionStatus(status: string | null | undefined): Plan {
+  return subscriptionKeepsPaidPlan(status) ? PAID_PLAN : LAUNCH_PLAN;
+}
+
+const STATUS_RANK = [
+  "trialing",
+  "active",
+  "past_due",
+  "unpaid",
+  "paused",
+  "incomplete",
+  "canceled",
+  "incomplete_expired",
+];
+
+function statusRank(status: string | null | undefined): number {
+  if (!status) return STATUS_RANK.length;
+  const index = STATUS_RANK.indexOf(status);
+  return index === -1 ? STATUS_RANK.length : index;
+}
+
+/**
+ * Vrai quand `incoming` doit remplacer un autre abonnement déjà enregistré
+ * (un essai ou un actif gagne sur une résiliation plus ancienne). Le même
+ * abonnement, lui, est toujours mis à jour, y compris vers « résilié ».
+ */
+export function subscriptionOutranks(
+  incoming: string | null | undefined,
+  stored: string | null | undefined,
+): boolean {
+  return statusRank(incoming) < statusRank(stored);
+}
+
+/**
+ * Vrai quand cet abonnement a consommé l'essai : l'essai a démarré, ou un
+ * cycle payant a commencé. Annuler une souscription jamais aboutie
+ * (`incomplete`, sans `trial_start`) ne compte pas.
+ */
+export function subscriptionMarksTrialUsed(
+  status: string | null | undefined,
+  trialStart: number | null | undefined,
+): boolean {
+  if (trialStart != null) return true;
+  return status === "active" || status === "past_due" || status === "unpaid" || status === "paused";
 }

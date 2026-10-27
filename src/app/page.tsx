@@ -1,69 +1,90 @@
-import Link from "next/link";
+import type { Metadata } from "next";
 import Analytics from "@/components/Analytics";
-import LegalLinks from "@/components/LegalLinks";
+import HomeLanding from "@/components/HomeLanding";
+import { publicSiteUrl } from "@/lib/base-url";
 import { BRAND_NAME } from "@/lib/brand";
-import { ANNOUNCED_PLAN, formatPlanPrice } from "@/lib/plans";
+import { ANNOUNCED_PLAN, TRIAL_PERIOD_DAYS, formatPlanPrice } from "@/lib/plans";
+import { publicPageMetadata } from "@/lib/seo";
+
+const planName = `Abonnement ${ANNOUNCED_PLAN.label}`;
+const price = formatPlanPrice(ANNOUNCED_PLAN.priceCents);
+const priceAmount = (ANNOUNCED_PLAN.priceCents / 100).toFixed(2);
+
+const title = `${BRAND_NAME} : commande à table, payée sur votre compte`;
+const description = `Commande à table par QR code. Paiements Stripe sur votre compte, sans commission. ${planName} à ${price}, après ${TRIAL_PERIOD_DAYS} jours d'essai dès l'inscription, sans carte.`;
+
+export const metadata: Metadata = publicPageMetadata({
+  title,
+  description,
+  path: "/",
+  absoluteTitle: true,
+});
+
+const origin = publicSiteUrl().origin;
+const offerDescription = `${TRIAL_PERIOD_DAYS} jours d'essai dès l'inscription, sans carte bancaire, puis ${price}. Aucune commission sur les commandes.`;
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${origin}/#organization`,
+      name: BRAND_NAME,
+      url: origin,
+      logo: `${origin}/brand/mark-512.png`,
+      areaServed: { "@type": "Country", name: "France" },
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${origin}/#website`,
+      name: BRAND_NAME,
+      url: origin,
+      inLanguage: "fr-FR",
+      publisher: { "@id": `${origin}/#organization` },
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${origin}/#software`,
+      name: BRAND_NAME,
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      inLanguage: "fr-FR",
+      url: origin,
+      description,
+      publisher: { "@id": `${origin}/#organization` },
+      offers: {
+        "@type": "Offer",
+        name: planName,
+        url: `${origin}/#tarif`,
+        price: priceAmount,
+        priceCurrency: "EUR",
+        availability: "https://schema.org/InStock",
+        description: offerDescription,
+        priceSpecification: {
+          "@type": "UnitPriceSpecification",
+          price: priceAmount,
+          priceCurrency: "EUR",
+          unitCode: "MON",
+          referenceQuantity: {
+            "@type": "QuantitativeValue",
+            value: 1,
+            unitCode: "MON",
+          },
+        },
+      },
+    },
+  ],
+};
 
 export default function HomePage() {
   return (
     <>
       <Analytics />
-      <header className="mx-auto w-full max-w-2xl px-6 pt-8">
-        <span className="text-lg font-extrabold tracking-tight">{BRAND_NAME}</span>
-      </header>
-
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-6 py-12">
-      <span className="inline-flex w-fit rounded-full bg-brand-soft px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-brand">
-        Commande à table
-      </span>
-      <h1 className="mt-4 text-4xl font-extrabold tracking-tight sm:text-5xl">
-        Le menu de votre restaurant, accessible par QR code
-      </h1>
-      <p className="mt-4 text-lg text-muted">
-        Vos clients scannent le QR code de leur table, commandent depuis leur téléphone et suivent
-        la préparation en direct. Votre cuisine reçoit les commandes en temps réel.
-      </p>
-
-      <p className="mt-4 inline-flex w-fit items-center gap-2 rounded-2xl bg-brand-soft px-4 py-3 text-sm font-semibold text-brand">
-        Gratuit pendant le lancement, puis {formatPlanPrice(ANNOUNCED_PLAN.priceCents)} — sans
-        engagement
-      </p>
-
-      <div className="mt-8 flex flex-wrap gap-3">
-        <Link
-          href="/signup"
-          className="card-float rounded-full bg-brand px-6 py-3.5 font-semibold text-white transition hover:bg-brand-strong"
-        >
-          Créer mon restaurant
-        </Link>
-        <Link
-          href="/login"
-          className="rounded-full bg-surface px-6 py-3.5 font-semibold text-foreground transition hover:bg-brand-soft hover:text-brand"
-        >
-          Se connecter
-        </Link>
-      </div>
-
-      <section className="mt-14 grid gap-4 sm:grid-cols-3">
-        {[
-          { title: "Le client scanne", text: "Un QR code par table ouvre le menu du jour." },
-          { title: "Il commande", text: "Panier, précisions cuisine, envoi en un geste." },
-          { title: "La cuisine suit", text: "Les commandes arrivent en direct sur l'écran." },
-        ].map((step, index) => (
-          <div key={step.title} className="card-float-sm rounded-3xl bg-surface p-5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
-              {index + 1}
-            </span>
-            <p className="mt-3 font-semibold">{step.title}</p>
-            <p className="mt-1 text-sm text-muted">{step.text}</p>
-          </div>
-        ))}
-      </section>
-      </main>
-
-      <footer className="mx-auto w-full max-w-2xl px-6 pb-8">
-        <LegalLinks />
-      </footer>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+      />
+      <HomeLanding />
     </>
   );
 }

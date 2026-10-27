@@ -1,6 +1,8 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import postgres from "postgres";
+import { TRIAL_PERIOD_DAYS } from "./plans";
+import { currentStripeMode } from "./stripe-mode";
 
 // Résolu à la première requête, pas au chargement du module : sinon,
 // l'étape "collect page data" de `next build` évalue le module de chaque
@@ -85,10 +87,47 @@ async function migrate(): Promise<void> {
   await sql`
     ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS stripe_account_mode text
   `;
+  // Clé d'idempotence de la création de compte en cours. Elle n'est conservée
+  // que tant que le résultat est inconnu (requête pas encore terminée, ou
+  // coupure). Une erreur Stripe l'efface : la réutiliser rejouerait cette
+  // erreur pendant 24 h, même une fois la cause corrigée.
+  await sql`
+    ALTER TABLE restaurants
+      ADD COLUMN IF NOT EXISTS stripe_account_idempotency_key text
+  `;
   await sql`
     UPDATE restaurants SET stripe_account_mode = 'test'
     WHERE stripe_account_id IS NOT NULL AND stripe_account_mode IS NULL
   `;
+  // Abonnement Stripe Billing, sur le compte plateforme (pas le compte
+  // connecté qui encaisse les commandes). Vide tant que le restaurateur
+  // ne s'abonne pas : aucun restaurant existant n'est facturé par cette
+  // migration. stripe_billing_mode distingue un client de test d'un client
+  // live. stripe_trial_consumed empêche d'offrir l'essai une seconde fois.
+  await sql`
+    ALTER TABLE restaurants
+      ADD COLUMN IF NOT EXISTS stripe_customer_id text,
+      ADD COLUMN IF NOT EXISTS stripe_subscription_id text,
+      ADD COLUMN IF NOT EXISTS stripe_subscription_status text,
+      ADD COLUMN IF NOT EXISTS stripe_billing_mode text,
+      ADD COLUMN IF NOT EXISTS stripe_trial_consumed boolean NOT NULL DEFAULT false
+  `;
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS restaurants_stripe_customer_id_idx
+      ON restaurants (stripe_customer_id)
+      WHERE stripe_customer_id IS NOT NULL
+  `;
+  // Essai plateforme : il commence à l'inscription, pas au paiement.
+  // Les restaurants déjà en base reçoivent leur essai dans
+  // backfillPlatformTrials(), une seule fois (trial_ends_at reste vide
+  // tant que ce passage n'a pas eu lieu).
+  await sql`
+    ALTER TABLE restaurants
+      ADD COLUMN IF NOT EXISTS trial_started_at timestamptz,
+      ADD COLUMN IF NOT EXISTS trial_ends_at timestamptz,
+      ADD COLUMN IF NOT EXISTS stripe_status_since timestamptz
+  `;
+  await backfillPlatformTrials();
   await sql`
     CREATE TABLE IF NOT EXISTS restaurant_owners (
       id text PRIMARY KEY,
@@ -207,6 +246,43 @@ async function migrate(): Promise<void> {
   `;
   await sql`
     CREATE INDEX IF NOT EXISTS restaurant_tables_restaurant_idx ON restaurant_tables (restaurant_id)
+  `;
+}
+
+/**
+ * Donne un essai aux restaurants créés avant cette version, sans toucher
+ * à ceux qui ont déjà une date de fin. Un abonnement qui ouvre déjà les
+ * commandes (dans le mode Stripe courant) ne reçoit pas un second essai :
+ * sa date de fin est posée à maintenant. Les autres, y compris un
+ * abonnement de test ignoré en production, partent pour 14 jours à partir
+ * de ce démarrage, pour ne pas couper les comptes existants le jour du
+ * déploiement.
+ */
+export async function backfillPlatformTrials(): Promise<void> {
+  const mode = currentStripeMode();
+  await sql`
+    UPDATE restaurants
+    SET trial_started_at = now(),
+        trial_ends_at = now() + (${TRIAL_PERIOD_DAYS} * interval '1 day')
+    WHERE trial_ends_at IS NULL
+      AND NOT (
+        stripe_billing_mode IS NOT DISTINCT FROM ${mode}
+        AND COALESCE(stripe_subscription_status, '') IN ('trialing', 'active', 'past_due', 'paused')
+      )
+  `;
+  await sql`
+    UPDATE restaurants
+    SET trial_started_at = COALESCE(trial_started_at, now()),
+        trial_ends_at = COALESCE(trial_ends_at, now())
+    WHERE trial_ends_at IS NULL
+      AND stripe_billing_mode IS NOT DISTINCT FROM ${mode}
+      AND stripe_subscription_status IN ('trialing', 'active', 'past_due', 'paused')
+  `;
+  await sql`
+    UPDATE restaurants
+    SET stripe_status_since = now()
+    WHERE stripe_subscription_status = 'past_due'
+      AND stripe_status_since IS NULL
   `;
 }
 
