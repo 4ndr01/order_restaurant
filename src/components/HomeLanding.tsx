@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BrandMark from "@/components/BrandMark";
 import LegalLinks from "@/components/LegalLinks";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { formatPrice } from "@/lib/format";
@@ -115,8 +116,9 @@ export default function HomeLanding() {
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-5 py-3">
           <Link
             href="/"
-            className="text-lg font-extrabold tracking-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="inline-flex items-center gap-2 text-lg font-extrabold tracking-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
+            <BrandMark />
             {BRAND_NAME}
           </Link>
           <SectionNav className="hidden items-center gap-1 lg:flex" />

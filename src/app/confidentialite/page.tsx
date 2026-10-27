@@ -2,8 +2,13 @@ import type { Metadata } from "next";
 import LegalPage, { Fill, Section } from "@/components/LegalPage";
 import { BRAND_NAME } from "@/lib/brand";
 import { LEGAL } from "@/lib/legal";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: `Confidentialité — ${BRAND_NAME}` };
+export const metadata: Metadata = publicPageMetadata({
+  title: "Politique de confidentialité",
+  description: `Données traitées par ${BRAND_NAME}, durée de conservation, cookie de connexion, mesure d'audience sans cookie et exercice de vos droits.`,
+  path: "/confidentialite",
+});
 
 const PROCESSORS = [
   { name: "Render", role: "Hébergement du site", location: "États-Unis" },
