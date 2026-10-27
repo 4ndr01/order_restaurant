@@ -55,7 +55,7 @@ const jsonLd = {
       offers: {
         "@type": "Offer",
         name: planName,
-        url: `${origin}/#tarif`,
+        url: `${origin}/tarif`,
         price: priceAmount,
         priceCurrency: "EUR",
         availability: "https://schema.org/InStock",

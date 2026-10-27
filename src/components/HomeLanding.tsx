@@ -1,30 +1,22 @@
 import Link from "next/link";
-import BrandMark from "@/components/BrandMark";
-import LegalLinks from "@/components/LegalLinks";
-import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
+import {
+  GUIDE_PAGES,
+  MarketingShell,
+  PRICE,
+  TrialBand,
+  TRIAL_CTA,
+  TRIAL_DAYS,
+  primaryCta,
+} from "@/components/MarketingChrome";
+import { BRAND_NAME } from "@/lib/brand";
 import { formatPrice } from "@/lib/format";
-import { ANNOUNCED_PLAN, TRIAL_PERIOD_DAYS, formatPlanPrice } from "@/lib/plans";
+import { ANNOUNCED_PLAN } from "@/lib/plans";
 import { STATUS_LABELS } from "@/lib/types";
 
 const PLAN_NAME = `Abonnement ${ANNOUNCED_PLAN.label}`;
-const PRICE = formatPlanPrice(ANNOUNCED_PLAN.priceCents);
-const TRIAL_CTA = `Essayer gratuitement ${TRIAL_PERIOD_DAYS} jours`;
-
-const primaryCta =
-  "card-float min-h-12 items-center justify-center rounded-full bg-brand px-6 text-center text-base font-semibold text-white transition hover:bg-brand-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
 
 const secondaryCta =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-surface px-6 text-center text-base font-semibold text-foreground transition hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
-
-const navLink =
-  "flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-semibold text-foreground/80 transition hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
-
-const SECTIONS = [
-  { href: "#fonctionnement", label: "Fonctionnement" },
-  { href: "#avantages", label: "Avantages" },
-  { href: "#tarif", label: "Tarif" },
-  { href: "#questions", label: "Questions" },
-] as const;
 
 const STEPS = [
   {
@@ -72,7 +64,7 @@ const QUESTIONS = [
   },
   {
     q: "Comment annuler l'abonnement ?",
-    a: `Dans votre espace, la page Abonnement ouvre le portail client Stripe. Vous y changez de carte, consultez vos factures et résiliez quand vous voulez. Rien n'est prélevé tant que vous n'avez pas souscrit l'abonnement vous-même. L'inscription ne demande pas de carte : l'essai de ${TRIAL_PERIOD_DAYS} jours commence à la création du restaurant.`,
+    a: `Dans votre espace, la page Abonnement ouvre le portail client Stripe. Vous y changez de carte, consultez vos factures et résiliez quand vous voulez. Rien n'est prélevé tant que vous n'avez pas souscrit l'abonnement vous-même. L'inscription ne demande pas de carte : l'essai de ${TRIAL_DAYS} jours commence à la création du restaurant.`,
   },
   {
     q: "Combien de temps pour être prêt ?",
@@ -80,7 +72,7 @@ const QUESTIONS = [
   },
   {
     q: "Quels frais faut-il prévoir ?",
-    a: `L'inscription est gratuite, sans carte bancaire. L'essai de ${TRIAL_PERIOD_DAYS} jours commence à ce moment-là, avec le service complet. Ensuite, l'abonnement ${ANNOUNCED_PLAN.label} coûte ${PRICE}. Si vous vous abonnez pendant l'essai, les jours restants sont conservés et le premier prélèvement a lieu à la fin de l'essai. Une fois l'essai terminé, le prélèvement a lieu le jour de la souscription. Aucune commission n'est prise sur les commandes. Stripe facture ses propres frais de paiement, à la charge du restaurant (environ 1,5 % + 0,25 € pour une carte européenne).`,
+    a: `L'inscription est gratuite, sans carte bancaire. L'essai de ${TRIAL_DAYS} jours commence à ce moment-là, avec le service complet. Ensuite, l'abonnement ${ANNOUNCED_PLAN.label} coûte ${PRICE}. Si vous vous abonnez pendant l'essai, les jours restants sont conservés et le premier prélèvement a lieu à la fin de l'essai. Une fois l'essai terminé, le prélèvement a lieu le jour de la souscription. Aucune commission n'est prise sur les commandes. Stripe facture ses propres frais de paiement, à la charge du restaurant (environ 1,5 % + 0,25 € pour une carte européenne).`,
   },
 ] as const;
 
@@ -90,50 +82,9 @@ const PREVIEW = [
   { name: "Fondant au chocolat", price: 8 },
 ] as const;
 
-function SectionNav({ className, labelledBy }: { className: string; labelledBy?: string }) {
-  return (
-    <nav aria-labelledby={labelledBy} aria-label={labelledBy ? undefined : "Sections"} className={className}>
-      {SECTIONS.map((section) => (
-        <a key={section.href} href={section.href} className={navLink}>
-          {section.label}
-        </a>
-      ))}
-    </nav>
-  );
-}
-
 export default function HomeLanding() {
   return (
-    <div className="flex min-h-full flex-1 flex-col pb-32 sm:pb-0">
-      <a
-        href="#contenu"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-brand focus:px-4 focus:py-2 focus:font-semibold focus:text-white"
-      >
-        Aller au contenu
-      </a>
-
-      <header className="sticky top-0 z-20 border-b border-line/80 bg-background/90 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-5 py-3">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-lg font-extrabold tracking-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-          >
-            <BrandMark />
-            {BRAND_NAME}
-          </Link>
-          <SectionNav className="hidden items-center gap-1 lg:flex" />
-          <div className="flex items-center gap-2">
-            <Link href="/login" className={navLink}>
-              Se connecter
-            </Link>
-            <Link href="/signup" className={`${primaryCta} hidden px-5 lg:inline-flex`}>
-              {TRIAL_CTA}
-            </Link>
-          </div>
-        </div>
-        <SectionNav className="no-scrollbar mx-auto flex w-full max-w-6xl gap-1 overflow-x-auto px-5 pb-3 lg:hidden" />
-      </header>
-
+    <MarketingShell>
       <main id="contenu">
         <section className="mx-auto grid w-full max-w-6xl items-center gap-12 px-5 py-14 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:py-20">
           <div>
@@ -157,7 +108,7 @@ export default function HomeLanding() {
               </Link>
             </div>
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
-              L&apos;inscription est gratuite, sans carte bancaire. Les {TRIAL_PERIOD_DAYS} jours
+              L&apos;inscription est gratuite, sans carte bancaire. Les {TRIAL_DAYS} jours
               d&apos;essai commencent à la création du restaurant, puis l&apos;abonnement{" "}
               {ANNOUNCED_PLAN.label} est à {PRICE}.
             </p>
@@ -197,6 +148,15 @@ export default function HomeLanding() {
               Trois étapes, de l&apos;inscription au service. Le menu client et l&apos;écran cuisine
               sont inclus.
             </p>
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
+              <Link href="/commande-a-table-qr-code" className="font-semibold text-brand hover:underline">
+                Le parcours de commande à table
+              </Link>
+              {" · "}
+              <Link href="/guide/qr-code-tables" className="font-semibold text-brand hover:underline">
+                Comment poser les QR codes
+              </Link>
+            </p>
             <ol className="mt-10 grid gap-4 md:grid-cols-3">
               {STEPS.map((step, index) => (
                 <li key={step.title} className="card-float-sm rounded-3xl bg-surface p-6">
@@ -218,7 +178,11 @@ export default function HomeLanding() {
             </h2>
             <p className="mt-3 max-w-2xl text-lg text-muted">
               La commande à table, le paiement direct et un abonnement sans commission sur le
-              ticket.
+              ticket.{" "}
+              <Link href="/paiement-a-table" className="font-semibold text-brand hover:underline">
+                Comment le paiement arrive sur votre compte
+              </Link>
+              .
             </p>
             <ul className="mt-10 grid gap-4 lg:grid-cols-3">
               {BENEFITS.map((benefit) => (
@@ -240,15 +204,19 @@ export default function HomeLanding() {
               Un seul tarif
             </h2>
             <p className="mt-3 max-w-2xl text-lg text-muted">
-              {TRIAL_PERIOD_DAYS} jours d&apos;essai dès l&apos;inscription, sans carte bancaire.
+              {TRIAL_DAYS} jours d&apos;essai dès l&apos;inscription, sans carte bancaire.
               Ensuite, l&apos;abonnement {ANNOUNCED_PLAN.label} à {PRICE}, seulement si vous le
-              prenez.
+              prenez.{" "}
+              <Link href="/tarif" className="font-semibold text-brand hover:underline">
+                Voir la page tarif
+              </Link>
+              .
             </p>
             <div className="card-float mx-auto mt-10 max-w-xl rounded-[2rem] border-t-4 border-accent bg-surface p-7 sm:p-9">
               <p className="text-sm font-bold uppercase tracking-[0.14em] text-brand">{PLAN_NAME}</p>
               <p className="mt-3 text-5xl font-extrabold tracking-tight text-brand">{PRICE}</p>
               <p className="mt-2 text-muted">
-                {TRIAL_PERIOD_DAYS} jours d&apos;essai dès l&apos;inscription, sans carte
+                {TRIAL_DAYS} jours d&apos;essai dès l&apos;inscription, sans carte
               </p>
               <ul className="mt-8 space-y-3">
                 {INCLUDED.map((item) => (
@@ -265,7 +233,7 @@ export default function HomeLanding() {
               </Link>
               <p className="mt-4 text-sm leading-relaxed text-muted">
                 Aucune carte n&apos;est demandée à l&apos;inscription. L&apos;essai de{" "}
-                {TRIAL_PERIOD_DAYS} jours commence à ce moment-là, avec le service complet. Pour
+                {TRIAL_DAYS} jours commence à ce moment-là, avec le service complet. Pour
                 continuer ensuite, activez l&apos;abonnement {ANNOUNCED_PLAN.label} : si vous le
                 faites pendant l&apos;essai, les jours restants sont conservés et le premier
                 prélèvement a lieu à la fin de l&apos;essai. Une fois l&apos;essai terminé, le
@@ -300,60 +268,29 @@ export default function HomeLanding() {
           </div>
         </section>
 
-        <section aria-labelledby="essai-titre" className="bg-brand text-white">
-          <div className="mx-auto w-full max-w-3xl px-5 py-16 text-center sm:py-20">
-            <h2 id="essai-titre" className="text-3xl font-extrabold tracking-tight text-balance sm:text-4xl">
-              Ouvrez la commande à table de votre restaurant
+        <section aria-labelledby="guides-titre" className="scroll-mt-28">
+          <div className="mx-auto w-full max-w-6xl px-5 py-16">
+            <h2 id="guides-titre" className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+              Pour préparer la salle
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-white/90">
-              Créez votre espace aujourd&apos;hui. L&apos;essai de {TRIAL_PERIOD_DAYS} jours
-              démarre à l&apos;inscription, sans carte bancaire. Ensuite, {PRICE}.
-            </p>
-            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link
-                href="/signup"
-                className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-surface px-6 font-semibold text-brand transition hover:bg-brand-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto"
-              >
-                {TRIAL_CTA}
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex min-h-12 w-full items-center justify-center rounded-full px-6 font-semibold text-white underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto"
-              >
-                Déjà inscrit ? Se connecter
-              </Link>
-            </div>
+            <ul className="mt-8 grid gap-4 sm:grid-cols-2">
+              {GUIDE_PAGES.map((page) => (
+                <li key={page.href}>
+                  <Link
+                    href={page.href}
+                    className="card-float-sm block h-full rounded-3xl bg-surface p-6 transition hover:-translate-y-0.5"
+                  >
+                    <p className="text-lg font-bold">{page.label}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-muted">{page.text}</p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
+
+        <TrialBand />
       </main>
-
-      <footer className="border-t border-line">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-10 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-lg font-extrabold tracking-tight">{BRAND_NAME}</p>
-            <p className="mt-1 max-w-sm text-sm text-muted">
-              {BRAND_TAGLINE}, pour les restaurants en France.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3">
-            <nav aria-label="Compte" className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
-              <Link href="/signup" className="hover:text-brand">
-                Créer mon restaurant
-              </Link>
-              <Link href="/login" className="hover:text-brand">
-                Se connecter
-              </Link>
-            </nav>
-            <LegalLinks />
-          </div>
-        </div>
-      </footer>
-
-      <div className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line bg-background/95 px-4 pt-3 backdrop-blur sm:hidden">
-        <Link href="/signup" className={`${primaryCta} inline-flex w-full`}>
-          {TRIAL_CTA}
-        </Link>
-      </div>
-    </div>
+    </MarketingShell>
   );
 }
