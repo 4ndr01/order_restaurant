@@ -30,6 +30,8 @@ export type SessionPayload = {
   restaurantId: string;
   ownerId: string;
   slug: string;
+  /** Empreinte du mot de passe à l'ouverture : la changer ferme les sessions ouvertes. */
+  pwd: string;
 };
 
 export async function signSession(payload: SessionPayload): Promise<string> {
@@ -46,9 +48,15 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
     if (
       typeof payload.restaurantId === "string" &&
       typeof payload.ownerId === "string" &&
-      typeof payload.slug === "string"
+      typeof payload.slug === "string" &&
+      typeof payload.pwd === "string"
     ) {
-      return { restaurantId: payload.restaurantId, ownerId: payload.ownerId, slug: payload.slug };
+      return {
+        restaurantId: payload.restaurantId,
+        ownerId: payload.ownerId,
+        slug: payload.slug,
+        pwd: payload.pwd,
+      };
     }
     return null;
   } catch {

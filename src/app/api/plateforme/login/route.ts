@@ -10,10 +10,16 @@ export const dynamic = "force-dynamic";
 // Plus strict que la connexion restaurant : cet accès voit tous les restaurants.
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 15 * 60_000;
+// Plafond toutes IP confondues : l'IP se falsifie, et seuls un ou deux
+// administrateurs se connectent ici.
+const MAX_ATTEMPTS_ALL_IPS = 20;
 
 export async function POST(request: Request) {
   const ip = clientIp(request);
-  const limit = rateLimit(`platform-login:${ip}`, MAX_ATTEMPTS, WINDOW_MS);
+  let limit = rateLimit(`platform-login:${ip}`, MAX_ATTEMPTS, WINDOW_MS);
+  if (limit.allowed) {
+    limit = rateLimit("platform-login:all", MAX_ATTEMPTS_ALL_IPS, WINDOW_MS);
+  }
   if (!limit.allowed) {
     return tooManyRequests(
       limit.retryAfterSeconds,

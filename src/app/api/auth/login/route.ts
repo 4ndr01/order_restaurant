@@ -6,6 +6,12 @@ export const dynamic = "force-dynamic";
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 60_000;
 
+// L'adresse IP vient d'un en-tête que le visiteur peut remplir lui-même : la
+// limite par compte garantit qu'on ne peut pas essayer des milliers de mots de
+// passe sur un même restaurateur en changeant d'IP à chaque requête.
+const MAX_ATTEMPTS_PER_ACCOUNT = 10;
+const ACCOUNT_WINDOW_MS = 15 * 60_000;
+
 export async function POST(request: Request) {
   const limit = rateLimit(`login:${clientIp(request)}`, MAX_ATTEMPTS, WINDOW_MS);
   if (!limit.allowed) {
@@ -20,8 +26,21 @@ export async function POST(request: Request) {
     return Response.json({ error: "Requête invalide." }, { status: 400 });
   }
 
+  const email = typeof body.email === "string" ? body.email : "";
+  const accountLimit = rateLimit(
+    `login-account:${email.trim().toLowerCase()}`,
+    MAX_ATTEMPTS_PER_ACCOUNT,
+    ACCOUNT_WINDOW_MS,
+  );
+  if (!accountLimit.allowed) {
+    return tooManyRequests(
+      accountLimit.retryAfterSeconds,
+      `Trop de tentatives sur ce compte. Réessayez dans ${Math.ceil(accountLimit.retryAfterSeconds / 60)} minutes.`,
+    );
+  }
+
   const result = await login({
-    email: typeof body.email === "string" ? body.email : "",
+    email,
     password: typeof body.password === "string" ? body.password : "",
   });
 

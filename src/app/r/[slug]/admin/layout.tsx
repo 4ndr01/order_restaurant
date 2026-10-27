@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import AdminAccessBanner from "@/components/AdminAccessBanner";
 import BrandMark from "@/components/BrandMark";
 import LogoutButton from "@/components/LogoutButton";
@@ -16,7 +17,12 @@ export default async function AdminLayout({
 }) {
   const { slug } = await params;
   const session = await getSession();
-  const restaurant = session ? await getRestaurantById(session.restaurantId) : null;
+  // proxy.ts ne vérifie que la signature. Une session fermée depuis (mot de
+  // passe changé) arrive jusqu'ici : retour à la connexion plutôt qu'une page vide.
+  if (!session) {
+    redirect(`/login?next=${encodeURIComponent(`/r/${slug}/admin`)}`);
+  }
+  const restaurant = await getRestaurantById(session.restaurantId);
   const access = restaurant ? accessForRestaurant(restaurant) : null;
   const banner =
     access && access.phase === "trial"

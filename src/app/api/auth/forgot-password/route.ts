@@ -21,6 +21,13 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const email = typeof body?.email === "string" ? body.email : "";
 
+  // Limite par adresse en plus de l'IP (falsifiable) : personne ne doit pouvoir
+  // inonder la boîte mail d'un restaurateur. Au-delà, la réponse reste la même
+  // que d'habitude, pour ne rien révéler sur l'existence du compte.
+  if (!rateLimit(`forgot-account:${email.trim().toLowerCase()}`, MAX_REQUESTS, 60 * 60_000).allowed) {
+    return Response.json({ ok: true });
+  }
+
   const token = await createPasswordResetToken(email);
 
   if (token) {

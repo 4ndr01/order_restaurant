@@ -32,13 +32,35 @@ export async function clearSessionCookie(): Promise<void> {
   store.delete(SESSION_COOKIE);
 }
 
+/**
+ * Empreinte du hachage du mot de passe, glissée dans la session. Le hachage
+ * change à chaque nouveau mot de passe (sel neuf) : une réinitialisation
+ * déconnecte donc tous les appareils, y compris celui d'un éventuel intrus.
+ */
+function passwordFingerprint(passwordHash: string): string {
+  return createHash("sha256").update(passwordHash).digest("base64url").slice(0, 22);
+}
+
 export async function getSession(): Promise<SessionPayload | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) {
     return null;
   }
-  return verifySessionToken(token);
+  const session = await verifySessionToken(token);
+  if (!session) {
+    return null;
+  }
+  // La signature prouve que la session a été ouverte par nous ; la base dit si
+  // elle vaut encore (mot de passe inchangé, compte toujours là).
+  const [owner] = await sql<{ password_hash: string }[]>`
+    SELECT password_hash FROM restaurant_owners
+    WHERE id = ${session.ownerId} AND restaurant_id = ${session.restaurantId}
+  `;
+  if (!owner || passwordFingerprint(owner.password_hash) !== session.pwd) {
+    return null;
+  }
+  return session;
 }
 
 /**
@@ -115,7 +137,12 @@ export async function signup(
   `;
   await seedRestaurant(restaurantId);
 
-  const session: SessionPayload = { restaurantId, ownerId, slug };
+  const session: SessionPayload = {
+    restaurantId,
+    ownerId,
+    slug,
+    pwd: passwordFingerprint(passwordHash),
+  };
   return {
     restaurant: {
       id: restaurantId,
@@ -159,7 +186,12 @@ export async function login(
   }
 
   return {
-    session: { restaurantId: owner.restaurant_id, ownerId: owner.id, slug: owner.slug },
+    session: {
+      restaurantId: owner.restaurant_id,
+      ownerId: owner.id,
+      slug: owner.slug,
+      pwd: passwordFingerprint(owner.password_hash),
+    },
   };
 }
 
