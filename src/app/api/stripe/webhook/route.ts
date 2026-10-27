@@ -13,7 +13,10 @@ export const dynamic = "force-dynamic";
 
 /**
  * Notifications Stripe signées. Deux endpoints, la même URL : Stripe n'écoute
- * qu'une origine par endpoint.
+ * qu'une origine par endpoint. Adresse canonique :
+ * https://wegood.kim/api/stripe/webhook. L'hôte onrender.com reste accepté
+ * (aucune redirection sur `/api`) tant que le tableau de bord Stripe pointe
+ * encore vers lui.
  * - STRIPE_WEBHOOK_SECRET : comptes connectés (`event.account` renseigné),
  *   paiement des commandes et inscription Connect.
  * - STRIPE_WEBHOOK_SECRET_PLATFORM : compte plateforme (pas de `event.account`),
