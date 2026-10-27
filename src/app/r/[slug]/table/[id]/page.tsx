@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import Analytics from "@/components/Analytics";
 import MenuViewBeacon from "@/components/MenuViewBeacon";
 import OrderBoard from "@/components/OrderBoard";
+import OrdersUnavailable from "@/components/OrdersUnavailable";
+import { orderingRefusal } from "@/lib/access";
 import { getPublicMenu, getRestaurantBySlug } from "@/lib/repo";
 import { isStripeConfigured } from "@/lib/stripe";
 
@@ -16,6 +18,14 @@ export default async function TablePage({
   const restaurant = await getRestaurantBySlug(slug);
   if (!restaurant) {
     notFound();
+  }
+  if (orderingRefusal(restaurant)) {
+    return (
+      <>
+        <Analytics />
+        <OrdersUnavailable restaurantName={restaurant.name} />
+      </>
+    );
   }
   const menu = await getPublicMenu(restaurant.id);
   return (

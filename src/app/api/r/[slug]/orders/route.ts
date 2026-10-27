@@ -1,3 +1,4 @@
+import { OrderingClosedError } from "@/lib/access";
 import { resolveBaseUrl } from "@/lib/base-url";
 import { sendOrderReceipt } from "@/lib/order-receipt";
 import { createCheckoutForOrder } from "@/lib/payments";
@@ -52,7 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     paymentRequired,
   });
   if ("error" in result) {
-    return Response.json({ error: result.error }, { status: 400 });
+    return Response.json({ error: result.error }, { status: result.closed ? 403 : 400 });
   }
 
   const baseUrl = resolveBaseUrl(request.headers, null, new URL(request.url).origin);
@@ -64,6 +65,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       const checkoutUrl = await createCheckoutForOrder(restaurant, result, baseUrl);
       return Response.json({ ...result, checkoutUrl }, { status: 201 });
     } catch (error) {
+      if (error instanceof OrderingClosedError) {
+        await markOrderPaymentExpired(restaurant.id, result.id);
+        return Response.json({ error: error.message }, { status: 403 });
+      }
       console.error("Création de la page de paiement impossible:", error);
       await markOrderPaymentExpired(restaurant.id, result.id);
       return Response.json(

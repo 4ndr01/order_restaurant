@@ -19,8 +19,17 @@ export type Restaurant = {
   stripeSubscriptionId: string | null;
   /** Statut Stripe brut (`trialing`, `active`, `past_due`, `canceled`, …). */
   stripeSubscriptionStatus: string | null;
-  /** Vrai dès qu'un essai a réellement commencé : il ne sera pas réoffert. */
+  /** Vrai dès qu'un essai Stripe a réellement commencé : il ne sera pas réoffert. */
   stripeTrialConsumed: boolean;
+  /** Début de l'essai plateforme, ouvert à l'inscription. */
+  trialStartedAt: string | null;
+  /** Fin de l'essai plateforme. Après cette date, un abonnement actif est requis. */
+  trialEndsAt: string | null;
+  /**
+   * Moment où le statut d'abonnement courant a été enregistré.
+   * Sert à limiter la grâce d'un prélèvement en échec.
+   */
+  stripeStatusSince: string | null;
 };
 
 export type Category = {

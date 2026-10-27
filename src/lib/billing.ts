@@ -1,9 +1,9 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import type Stripe from "stripe";
+import { stripeCheckoutTrialEnd } from "./access";
 import {
   PAID_PLAN,
-  TRIAL_PERIOD_DAYS,
   planForSubscriptionStatus,
   subscriptionKeepsPaidPlan,
   subscriptionMarksTrialUsed,
@@ -18,18 +18,7 @@ import { getStripe, isStripeConfigured } from "./stripe";
 import { currentStripeMode } from "./stripe-mode";
 import type { Restaurant } from "./types";
 
-/**
- * Interrupteur unique. Défaut : désactivé.
- *
- * Aucune route ne s'en sert pour refuser l'accès. Le mettre à `true` sur
- * Render ne coupe ni le menu, ni les commandes, ni l'administration : le
- * statut d'abonnement est seulement enregistré. Un changement ultérieur
- * devra lire cette fonction avant d'ajouter une restriction, et laisser
- * ouverte la page Abonnement.
- */
-export function isBillingEnforced(): boolean {
-  return process.env.BILLING_ENFORCED?.trim() === "true";
-}
+export { isBillingEnforced } from "./access";
 
 /** Vrai quand la page Abonnement peut ouvrir Stripe Checkout. */
 export function isBillingConfigured(): boolean {
@@ -229,11 +218,12 @@ export async function openSubscriptionCheckout(
     }
   }
 
-  const trial =
-    !fresh.stripeTrialConsumed &&
-    !existing.data.some((subscription) =>
-      subscriptionMarksTrialUsed(subscription.status, subscription.trial_start),
-    );
+  // L'essai a déjà commencé à l'inscription. On ne redonne pas 14 jours :
+  // Checkout reprend la date de fin restante, ou rien si elle est passée.
+  const trialEnd = stripeCheckoutTrialEnd(
+    fresh.trialEndsAt ? new Date(fresh.trialEndsAt) : null,
+    new Date(),
+  );
 
   const page = subscriptionPage(baseUrl, restaurant.slug);
   const key = idempotencyKey(`billing-checkout-${restaurant.id}`);
@@ -251,8 +241,8 @@ export async function openSubscriptionCheckout(
       metadata: { restaurant_id: restaurant.id, purpose: "platform_subscription" },
       subscription_data: {
         metadata: { restaurant_id: restaurant.id },
-        description: `Abonnement ${PAID_PLAN.label} — ${restaurant.name}`,
-        ...(trial && TRIAL_PERIOD_DAYS >= 1 ? { trial_period_days: TRIAL_PERIOD_DAYS } : {}),
+        description: `Abonnement ${PAID_PLAN.label} : ${restaurant.name}`,
+        ...(trialEnd ? { trial_end: trialEnd } : {}),
       },
       // La TVA n'est pas calculée : automatic_tax resterait à zéro tant qu'aucun
       // enregistrement fiscal n'est actif, sans signaler d'erreur.

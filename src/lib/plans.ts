@@ -1,21 +1,20 @@
 /**
  * Source unique des tarifs de la plateforme.
  *
- * Les nouveaux restaurants restent sur le plan « lancement » (0 €). Rien n'est
- * prélevé tout seul : le restaurateur s'abonne lui-même depuis la page
- * Abonnement, via Stripe Billing sur le compte plateforme (pas sur son compte
- * connecté). Le Price Stripe correspondant est `STRIPE_PRICE_ID` — un prix
- * récurrent de `PAID_PLAN.priceCents` centimes EUR par mois. L'essai
- * (`TRIAL_PERIOD_DAYS`) est appliqué par l'application à la première
- * souscription, pas sur le Price.
+ * Les nouveaux restaurants restent sur le plan « lancement » (0 €) pendant
+ * l'essai. Rien n'est prélevé tout seul : le restaurateur s'abonne lui-même
+ * depuis la page Abonnement, via Stripe Billing sur le compte plateforme
+ * (pas sur son compte connecté). Le Price Stripe correspondant est
+ * `STRIPE_PRICE_ID`, un prix récurrent de `PAID_PLAN.priceCents` centimes
+ * EUR par mois. L'essai (`TRIAL_PERIOD_DAYS`) commence à l'inscription et
+ * est stocké sur le restaurant. Checkout ne reçoit un `trial_end` que pour
+ * les jours encore devant, jamais un second essai de 14 jours.
  *
- * Interrupteur unique de l'exigence d'abonnement : la variable
- * d'environnement `BILLING_ENFORCED`. Absente, ou différente de `true`, elle
- * est désactivée (défaut). `isBillingEnforced()` dans `src/lib/billing.ts`
- * est le seul endroit qui la lit. Cette version ne s'en sert pas pour
- * refuser une page ou une commande : le statut est enregistré, l'accès reste
- * ouvert, y compris si la variable est mise à `true`. Le blocage viendra
- * d'un changement qui consultera cette fonction.
+ * L'exigence d'abonnement est activée par défaut. `BILLING_ENFORCED=false`
+ * (ou `0`, `off`, `non`) la coupe. `isBillingEnforced()` dans
+ * `src/lib/access.ts` est le seul endroit qui lit cette variable.
+ * `describeAccess()` s'en sert pour refuser les nouvelles commandes une fois
+ * l'essai terminé, sans abonnement ouvert. La page Abonnement reste accessible.
  */
 
 export type Plan = {
@@ -36,7 +35,7 @@ export const PAID_PLAN: Plan = {
   priceCents: 2900,
 };
 
-/** Durée de l'essai gratuit à la première souscription, en jours. */
+/** Durée de l'essai gratuit ouvert à l'inscription, en jours. */
 export const TRIAL_PERIOD_DAYS = 14;
 
 /** Plan attribué aux nouveaux restaurants à l'inscription. Jamais le plan payant. */
@@ -45,7 +44,7 @@ export const CURRENT_PLAN = LAUNCH_PLAN;
 /** Tarif annoncé pour l'après-lancement, affiché sur les pages publiques. */
 export const ANNOUNCED_PLAN = PAID_PLAN;
 
-/** Nom de la variable qui activera plus tard l'exigence d'abonnement. Défaut : désactivée. */
+/** Nom de la variable qui peut désactiver l'exigence d'abonnement. Défaut : activée. */
 export const BILLING_ENFORCED_ENV = "BILLING_ENFORCED";
 
 const euro = new Intl.NumberFormat("fr-FR", {

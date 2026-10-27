@@ -9,7 +9,7 @@ const planName = `Abonnement ${ANNOUNCED_PLAN.label}`;
 const price = formatPlanPrice(ANNOUNCED_PLAN.priceCents);
 
 const title = `${BRAND_NAME} : commande à table, payée sur votre compte`;
-const description = `Commande à table par QR code. Paiements Stripe sur votre compte, sans commission. ${planName} à ${price}, ${TRIAL_PERIOD_DAYS} jours d'essai.`;
+const description = `Commande à table par QR code. Paiements Stripe sur votre compte, sans commission. ${planName} à ${price}, après ${TRIAL_PERIOD_DAYS} jours d'essai dès l'inscription, sans carte.`;
 
 export const metadata: Metadata = {
   title,
@@ -42,7 +42,7 @@ const jsonLd = {
     name: planName,
     price: (ANNOUNCED_PLAN.priceCents / 100).toFixed(2),
     priceCurrency: "EUR",
-    description: `${TRIAL_PERIOD_DAYS} jours d'essai à la première souscription. Aucune commission sur les commandes.`,
+    description: `${TRIAL_PERIOD_DAYS} jours d'essai dès l'inscription, sans carte bancaire, puis ${price}. Aucune commission sur les commandes.`,
   },
 };
 

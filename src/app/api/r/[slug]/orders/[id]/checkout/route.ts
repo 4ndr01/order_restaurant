@@ -1,3 +1,4 @@
+import { orderingRefusal } from "@/lib/access";
 import { resolveBaseUrl } from "@/lib/base-url";
 import { refreshOrderPayment } from "@/lib/payments";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
@@ -24,6 +25,10 @@ export async function POST(
   }
   if (order.paymentStatus !== "en_attente") {
     return Response.json({ order });
+  }
+  const refusal = orderingRefusal(restaurant);
+  if (refusal) {
+    return Response.json({ error: refusal }, { status: 403 });
   }
 
   try {
