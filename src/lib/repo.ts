@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { normalizeAllergens } from "./allergens";
 import { createId, ensureSchema, sql } from "./db";
+import { orderingRefusal } from "./access";
 import { LAUNCH_PLAN, subscriptionOutranks } from "./plans";
 import { currentStripeMode, type StripeMode } from "./stripe-mode";
 import type {
@@ -104,7 +105,14 @@ type RestaurantRow = {
   stripe_subscription_status: string | null;
   stripe_billing_mode: string | null;
   stripe_trial_consumed: boolean;
+  trial_started_at: Date | null;
+  trial_ends_at: Date | null;
+  stripe_status_since: Date | null;
 };
+
+function iso(value: Date | null): string | null {
+  return value ? value.toISOString() : null;
+}
 
 /**
  * Compte Stripe utilisable dans le mode courant : après le passage en
@@ -132,29 +140,58 @@ function mapRestaurant(row: RestaurantRow): Restaurant {
     stripeSubscriptionId: billingHere ? row.stripe_subscription_id : null,
     stripeSubscriptionStatus: billingHere ? row.stripe_subscription_status : null,
     stripeTrialConsumed: billingHere && row.stripe_trial_consumed,
+    trialStartedAt: iso(row.trial_started_at),
+    trialEndsAt: iso(row.trial_ends_at),
+    stripeStatusSince: billingHere ? iso(row.stripe_status_since) : null,
   };
+}
+
+function restaurantColumns() {
+  return sql`
+    id, slug, name, plan, price_cents, stripe_account_id, stripe_charges_enabled,
+    stripe_account_mode, stripe_customer_id, stripe_subscription_id,
+    stripe_subscription_status, stripe_billing_mode, stripe_trial_consumed,
+    trial_started_at, trial_ends_at, stripe_status_since
+  `;
+}
+
+/**
+ * Un prélèvement déjà en échec sans date de départ prend sa grâce au
+ * premier chargement, une seule fois.
+ */
+async function stampPastDue(row: RestaurantRow): Promise<RestaurantRow> {
+  if (row.stripe_subscription_status !== "past_due" || row.stripe_status_since) return row;
+  if (row.stripe_billing_mode !== currentStripeMode()) return row;
+  const [updated] = await sql<{ stripe_status_since: Date }[]>`
+    UPDATE restaurants
+    SET stripe_status_since = now()
+    WHERE id = ${row.id}
+      AND stripe_subscription_status = 'past_due'
+      AND stripe_status_since IS NULL
+    RETURNING stripe_status_since
+  `;
+  if (updated) return { ...row, stripe_status_since: updated.stripe_status_since };
+  const [current] = await sql<{ stripe_status_since: Date | null }[]>`
+    SELECT stripe_status_since FROM restaurants WHERE id = ${row.id}
+  `;
+  if (!current?.stripe_status_since) return row;
+  return { ...row, stripe_status_since: current.stripe_status_since };
 }
 
 export async function getRestaurantBySlug(slug: string): Promise<Restaurant | null> {
   await ensureSchema();
   const rows = await sql<RestaurantRow[]>`
-    SELECT id, slug, name, plan, price_cents, stripe_account_id, stripe_charges_enabled,
-      stripe_account_mode, stripe_customer_id, stripe_subscription_id,
-      stripe_subscription_status, stripe_billing_mode, stripe_trial_consumed
-    FROM restaurants WHERE slug = ${slug}
+    SELECT ${restaurantColumns()} FROM restaurants WHERE slug = ${slug}
   `;
-  return rows[0] ? mapRestaurant(rows[0]) : null;
+  return rows[0] ? mapRestaurant(await stampPastDue(rows[0])) : null;
 }
 
 export async function getRestaurantById(id: string): Promise<Restaurant | null> {
   await ensureSchema();
   const rows = await sql<RestaurantRow[]>`
-    SELECT id, slug, name, plan, price_cents, stripe_account_id, stripe_charges_enabled,
-      stripe_account_mode, stripe_customer_id, stripe_subscription_id,
-      stripe_subscription_status, stripe_billing_mode, stripe_trial_consumed
-    FROM restaurants WHERE id = ${id}
+    SELECT ${restaurantColumns()} FROM restaurants WHERE id = ${id}
   `;
-  return rows[0] ? mapRestaurant(rows[0]) : null;
+  return rows[0] ? mapRestaurant(await stampPastDue(rows[0])) : null;
 }
 
 export async function findRestaurantIdByStripeCustomer(customerId: string): Promise<string | null> {
@@ -189,6 +226,10 @@ export async function attachStripeCustomer(restaurantId: string, customerId: str
       stripe_trial_consumed = CASE
         WHEN stripe_billing_mode IS NOT DISTINCT FROM ${mode} THEN stripe_trial_consumed
         ELSE false
+      END,
+      stripe_status_since = CASE
+        WHEN stripe_billing_mode IS NOT DISTINCT FROM ${mode} THEN stripe_status_since
+        ELSE NULL
       END,
       plan = CASE
         WHEN stripe_billing_mode IS NOT DISTINCT FROM ${mode} THEN plan
@@ -281,7 +322,12 @@ export async function saveRestaurantSubscription(input: {
         stripe_billing_mode = ${mode},
         plan = ${input.plan},
         price_cents = ${input.priceCents},
-        stripe_trial_consumed = ${trialConsumed}
+        stripe_trial_consumed = ${trialConsumed},
+        stripe_status_since = CASE
+          WHEN ${sameMode} AND stripe_subscription_status IS NOT DISTINCT FROM ${input.status}
+          THEN stripe_status_since
+          ELSE now()
+        END
       WHERE id = ${input.restaurantId}
       RETURNING id
     `;
@@ -623,8 +669,17 @@ export async function createOrder(
     /** Vrai si le restaurant encaisse en ligne : la commande attend alors son paiement. */
     paymentRequired?: boolean;
   },
-): Promise<Order | { error: string }> {
+): Promise<Order | { error: string; closed?: boolean }> {
   await ensureSchema();
+
+  const restaurant = await getRestaurantById(restaurantId);
+  if (!restaurant) {
+    return { error: "Restaurant introuvable." };
+  }
+  const refusal = orderingRefusal(restaurant);
+  if (refusal) {
+    return { error: refusal, closed: true };
+  }
 
   if (input.lines.length === 0 || input.lines.length > 50) {
     return { error: "La commande est vide." };

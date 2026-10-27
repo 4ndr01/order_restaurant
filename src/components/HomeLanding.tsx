@@ -71,7 +71,7 @@ const QUESTIONS = [
   },
   {
     q: "Comment annuler l'abonnement ?",
-    a: "Dans votre espace, la page Abonnement ouvre le portail client Stripe. Vous y changez de carte, consultez vos factures et résiliez quand vous voulez. Rien n'est prélevé tant que vous n'avez pas souscrit vous-même. Tout passage à une formule payante est annoncé par email au moins 30 jours à l'avance, et aucun montant n'est pris sans votre accord.",
+    a: `Dans votre espace, la page Abonnement ouvre le portail client Stripe. Vous y changez de carte, consultez vos factures et résiliez quand vous voulez. Rien n'est prélevé tant que vous n'avez pas souscrit l'abonnement vous-même. L'inscription ne demande pas de carte : l'essai de ${TRIAL_PERIOD_DAYS} jours commence à la création du restaurant.`,
   },
   {
     q: "Combien de temps pour être prêt ?",
@@ -79,7 +79,7 @@ const QUESTIONS = [
   },
   {
     q: "Quels frais faut-il prévoir ?",
-    a: `L'abonnement ${ANNOUNCED_PLAN.label} coûte ${PRICE}. À la première souscription, l'essai dure ${TRIAL_PERIOD_DAYS} jours : la carte est demandée tout de suite, le premier prélèvement a lieu à la fin de l'essai. Si vous vous réabonnez après avoir déjà utilisé l'essai, le prélèvement a lieu le jour même. Aucune commission n'est prise sur les commandes. Stripe facture ses propres frais de paiement, à la charge du restaurant (environ 1,5 % + 0,25 € pour une carte européenne).`,
+    a: `L'inscription est gratuite, sans carte bancaire. L'essai de ${TRIAL_PERIOD_DAYS} jours commence à ce moment-là, avec le service complet. Ensuite, l'abonnement ${ANNOUNCED_PLAN.label} coûte ${PRICE}. Si vous vous abonnez pendant l'essai, les jours restants sont conservés et le premier prélèvement a lieu à la fin de l'essai. Une fois l'essai terminé, le prélèvement a lieu le jour de la souscription. Aucune commission n'est prise sur les commandes. Stripe facture ses propres frais de paiement, à la charge du restaurant (environ 1,5 % + 0,25 € pour une carte européenne).`,
   },
 ] as const;
 
@@ -156,8 +156,8 @@ export default function HomeLanding() {
             </div>
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
               L&apos;inscription est gratuite, sans carte bancaire. Les {TRIAL_PERIOD_DAYS} jours
-              d&apos;essai commencent quand vous activez l&apos;abonnement {ANNOUNCED_PLAN.label}{" "}
-              ({PRICE}).
+              d&apos;essai commencent à la création du restaurant, puis l&apos;abonnement{" "}
+              {ANNOUNCED_PLAN.label} est à {PRICE}.
             </p>
           </div>
 
@@ -238,14 +238,15 @@ export default function HomeLanding() {
               Un seul tarif
             </h2>
             <p className="mt-3 max-w-2xl text-lg text-muted">
-              Vous activez l&apos;abonnement {ANNOUNCED_PLAN.label} depuis votre espace, quand vous
-              le décidez. Rien n&apos;est prélevé tout seul.
+              {TRIAL_PERIOD_DAYS} jours d&apos;essai dès l&apos;inscription, sans carte bancaire.
+              Ensuite, l&apos;abonnement {ANNOUNCED_PLAN.label} à {PRICE}, seulement si vous le
+              prenez.
             </p>
             <div className="card-float mx-auto mt-10 max-w-xl rounded-[2rem] border-t-4 border-accent bg-surface p-7 sm:p-9">
               <p className="text-sm font-bold uppercase tracking-[0.14em] text-brand">{PLAN_NAME}</p>
               <p className="mt-3 text-5xl font-extrabold tracking-tight text-brand">{PRICE}</p>
               <p className="mt-2 text-muted">
-                {TRIAL_PERIOD_DAYS} jours d&apos;essai à la première souscription
+                {TRIAL_PERIOD_DAYS} jours d&apos;essai dès l&apos;inscription, sans carte
               </p>
               <ul className="mt-8 space-y-3">
                 {INCLUDED.map((item) => (
@@ -261,11 +262,13 @@ export default function HomeLanding() {
                 {TRIAL_CTA}
               </Link>
               <p className="mt-4 text-sm leading-relaxed text-muted">
-                Pendant le lancement, l&apos;espace reste gratuit tant que vous ne souscrivez pas,
-                et aucune carte n&apos;est demandée à l&apos;inscription. Quand vous activez
-                l&apos;abonnement, la carte est enregistrée tout de suite et le premier prélèvement
-                a lieu à la fin des {TRIAL_PERIOD_DAYS} jours. Vous gérez ou résiliez l&apos;abonnement
-                à tout moment dans le portail client Stripe.
+                Aucune carte n&apos;est demandée à l&apos;inscription. L&apos;essai de{" "}
+                {TRIAL_PERIOD_DAYS} jours commence à ce moment-là, avec le service complet. Pour
+                continuer ensuite, activez l&apos;abonnement {ANNOUNCED_PLAN.label} : si vous le
+                faites pendant l&apos;essai, les jours restants sont conservés et le premier
+                prélèvement a lieu à la fin de l&apos;essai. Une fois l&apos;essai terminé, le
+                prélèvement a lieu le jour de la souscription. Vous gérez ou résiliez
+                l&apos;abonnement à tout moment dans le portail client Stripe.
               </p>
             </div>
           </div>
@@ -302,7 +305,7 @@ export default function HomeLanding() {
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-white/90">
               Créez votre espace aujourd&apos;hui. L&apos;essai de {TRIAL_PERIOD_DAYS} jours
-              démarre quand vous activez l&apos;abonnement.
+              démarre à l&apos;inscription, sans carte bancaire. Ensuite, {PRICE}.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link

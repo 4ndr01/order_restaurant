@@ -1,4 +1,5 @@
 import SubscriptionActions from "@/components/SubscriptionActions";
+import { accessForRestaurant, isBillingEnforced, joursLabel, type AccessSnapshot } from "@/lib/access";
 import { getSession } from "@/lib/auth";
 import {
   applyPlatformCheckoutReturn,
@@ -7,7 +8,6 @@ import {
 } from "@/lib/billing";
 import {
   ANNOUNCED_PLAN,
-  TRIAL_PERIOD_DAYS,
   formatPlanPrice,
   subscriptionKeepsPaidPlan,
   subscriptionStatusLabel,
@@ -31,9 +31,16 @@ function statusTone(status: string | null): string {
   return "bg-black/5 text-muted";
 }
 
-function explanation(restaurant: Restaurant, billingOpen: boolean): string {
+function trialSentence(access: AccessSnapshot): string | null {
+  if (access.trialDaysLeft <= 0) return null;
+  return `Il vous reste ${joursLabel(access.trialDaysLeft)} d'essai gratuit.`;
+}
+
+function explanation(restaurant: Restaurant, billingOpen: boolean, access: AccessSnapshot): string {
   const price = formatPlanPrice(ANNOUNCED_PLAN.priceCents);
   const status = restaurant.stripeSubscriptionStatus;
+  const trialLeft = trialSentence(access);
+  const kept = "Vos données, votre menu et vos réglages sont conservés.";
 
   if (status === "trialing") {
     return `Votre essai gratuit est en cours. Aucun prélèvement avant la fin de l'essai, puis ${price}. Vous pouvez résilier ou changer de carte à tout moment.`;
@@ -41,24 +48,45 @@ function explanation(restaurant: Restaurant, billingOpen: boolean): string {
   if (status === "active" || status === "paused") {
     return `Votre abonnement est en cours : ${price}. Résiliable à tout moment, la carte se met à jour depuis cette page.`;
   }
-  if (status === "past_due" || status === "unpaid") {
-    return "Le dernier prélèvement a échoué. Mettez à jour votre carte pour que l'abonnement continue. Votre espace reste ouvert.";
+  if (status === "past_due") {
+    if (access.phase === "past_due") {
+      return `Le dernier prélèvement a échoué. Mettez à jour votre carte. Les commandes restent ouvertes encore ${joursLabel(access.graceDaysLeft)}.`;
+    }
+    if (access.acceptsOrders && trialLeft) {
+      return `${trialLeft} Le dernier prélèvement a échoué : mettez à jour votre carte avant la fin de l'essai.`;
+    }
+    return `Le dernier prélèvement a échoué et le délai pour le régulariser est dépassé. Les commandes en ligne sont en pause. Mettez à jour votre carte pour les rouvrir. ${kept}`;
+  }
+  if (status === "unpaid") {
+    if (access.acceptsOrders && trialLeft) {
+      return `${trialLeft} L'abonnement est impayé. Mettez à jour votre carte pour qu'il reprenne.`;
+    }
+    return `L'abonnement est impayé. Les commandes en ligne sont en pause. Mettez à jour votre carte pour les rouvrir. ${kept}`;
   }
   if (status === "incomplete") {
-    return "Le paiement n'est pas allé au bout. Vous pouvez reprendre la souscription : rien n'a été prélevé.";
+    return access.acceptsOrders && trialLeft
+      ? `${trialLeft} Le paiement de l'abonnement n'est pas allé au bout. Vous pouvez le reprendre : rien n'a été prélevé.`
+      : "Le paiement de l'abonnement n'est pas allé au bout. Les commandes en ligne sont en pause tant qu'il n'est pas confirmé. Rien n'a été prélevé.";
   }
   if (status === "canceled" || status === "incomplete_expired") {
-    return restaurant.stripeTrialConsumed
-      ? `Votre abonnement est résilié. Vous pouvez vous réabonner (${price}), le prélèvement a lieu aujourd'hui. L'accès à votre espace n'est pas coupé.`
-      : `Votre abonnement est résilié. Vous pouvez vous réabonner quand vous voulez. L'accès à votre espace n'est pas coupé.`;
+    if (access.acceptsOrders && trialLeft) {
+      return `${trialLeft} L'abonnement est résilié. Vous pouvez vous réabonner (${price}) : les jours restants sont conservés, le premier prélèvement a lieu à la fin de l'essai.`;
+    }
+    return `Votre abonnement est résilié. Les commandes en ligne sont en pause. Vous pouvez vous réabonner (${price}), le prélèvement a lieu aujourd'hui. ${kept}`;
   }
   if (!billingOpen) {
-    return `Vous faites partie des premiers restaurants : votre espace est gratuit pendant toute la phase de lancement, sans limite de durée et sans carte bancaire. Le tarif prévu ensuite sera de ${price}, et vous serez prévenu bien avant tout changement.`;
+    if (!isBillingEnforced()) {
+      return `Vous faites partie des premiers restaurants : votre espace est gratuit pendant toute la phase de lancement, sans limite de durée et sans carte bancaire. Le tarif prévu ensuite sera de ${price}, et vous serez prévenu bien avant tout changement.`;
+    }
+    if (access.acceptsOrders && trialLeft) {
+      return `${trialLeft} Aucune carte n'est demandée pour l'instant. L'abonnement en ligne n'est pas encore ouvert sur cette installation.`;
+    }
+    return `L'abonnement en ligne n'est pas encore ouvert. Les commandes en ligne sont en pause. ${kept}`;
   }
-  if (restaurant.stripeTrialConsumed) {
-    return `Votre espace reste gratuit tant que vous ne vous réabonnez pas. La formule Standard est à ${price}, prélevée aujourd'hui, résiliable à tout moment. Rien n'est facturé automatiquement.`;
+  if (access.phase === "trial" && trialLeft) {
+    return `${trialLeft} Aucune carte n'est demandée tant que vous ne vous abonnez pas. La formule Standard est à ${price}. Si vous vous abonnez maintenant, les jours restants sont conservés et le premier prélèvement a lieu à la fin de l'essai.`;
   }
-  return `Votre espace reste gratuit tant que vous ne vous abonnez pas, et l'accès n'est pas coupé. La formule Standard est à ${price}, avec ${TRIAL_PERIOD_DAYS} jours d'essai : la carte est demandée aujourd'hui, le premier prélèvement a lieu à la fin de l'essai. Rien n'est facturé automatiquement.`;
+  return `Votre essai gratuit est terminé. Les commandes en ligne sont en pause. Abonnez-vous (${price}) pour les rouvrir tout de suite : le prélèvement a lieu aujourd'hui. ${kept}`;
 }
 
 export default async function SubscriptionPage({
@@ -95,14 +123,25 @@ export default async function SubscriptionPage({
   const status = restaurant.stripeSubscriptionStatus;
   const label = subscriptionStatusLabel(status);
   const subscribed = subscriptionKeepsPaidPlan(status);
-  const priceLabel = formatPlanPrice(subscribed ? ANNOUNCED_PLAN.priceCents : restaurant.priceCents);
-  const formula = subscribed ? ANNOUNCED_PLAN.label : "Lancement";
+  const access = accessForRestaurant(restaurant);
+  const priceLabel = subscribed
+    ? formatPlanPrice(ANNOUNCED_PLAN.priceCents)
+    : access.phase === "trial"
+      ? joursLabel(access.trialDaysLeft)
+      : access.phase === "blocked"
+        ? formatPlanPrice(ANNOUNCED_PLAN.priceCents)
+        : formatPlanPrice(restaurant.priceCents);
+  const formula = subscribed
+    ? ANNOUNCED_PLAN.label
+    : access.phase === "trial"
+      ? "Essai gratuit"
+      : access.phase === "disabled"
+        ? "Lancement"
+        : "Sans abonnement";
 
   const subscribeLabel = !billingOpen || subscribed
     ? null
-    : restaurant.stripeTrialConsumed
-      ? `S'abonner — ${formatPlanPrice(ANNOUNCED_PLAN.priceCents)}`
-      : `Essayer ${TRIAL_PERIOD_DAYS} jours`;
+    : `S'abonner (${formatPlanPrice(ANNOUNCED_PLAN.priceCents)})`;
   const manageLabel = restaurant.stripeCustomerId
     ? status === "past_due" || status === "unpaid"
       ? "Mettre à jour ma carte"
@@ -152,7 +191,7 @@ export default async function SubscriptionPage({
         </div>
 
         <p className="mt-5 rounded-2xl bg-brand-soft px-4 py-3 text-sm text-brand">
-          {explanation(restaurant, billingOpen)}
+          {explanation(restaurant, billingOpen, access)}
         </p>
 
         <ul className="mt-6 space-y-2 text-sm">

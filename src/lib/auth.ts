@@ -11,7 +11,7 @@ import {
   verifySessionToken,
   type SessionPayload,
 } from "./session";
-import { CURRENT_PLAN } from "./plans";
+import { CURRENT_PLAN, TRIAL_PERIOD_DAYS } from "./plans";
 import { isSlugTaken } from "./repo";
 import type { Restaurant } from "./types";
 
@@ -97,10 +97,17 @@ export async function signup(
   const restaurantId = createId();
   const ownerId = createId();
   const passwordHash = await hashPassword(input.password);
+  const trialStartedAt = new Date();
+  const trialEndsAt = new Date(trialStartedAt.getTime() + TRIAL_PERIOD_DAYS * 86_400_000);
 
   await sql`
-    INSERT INTO restaurants (id, slug, name, plan, price_cents)
-    VALUES (${restaurantId}, ${slug}, ${restaurantName}, ${CURRENT_PLAN.id}, ${CURRENT_PLAN.priceCents})
+    INSERT INTO restaurants (
+      id, slug, name, plan, price_cents, trial_started_at, trial_ends_at
+    )
+    VALUES (
+      ${restaurantId}, ${slug}, ${restaurantName}, ${CURRENT_PLAN.id}, ${CURRENT_PLAN.priceCents},
+      ${trialStartedAt}, ${trialEndsAt}
+    )
   `;
   await sql`
     INSERT INTO restaurant_owners (id, restaurant_id, email, password_hash)
@@ -122,6 +129,9 @@ export async function signup(
       stripeSubscriptionId: null,
       stripeSubscriptionStatus: null,
       stripeTrialConsumed: false,
+      trialStartedAt: trialStartedAt.toISOString(),
+      trialEndsAt: trialEndsAt.toISOString(),
+      stripeStatusSince: null,
     },
     session,
   };

@@ -1,6 +1,10 @@
 import Link from "next/link";
+import AdminAccessBanner from "@/components/AdminAccessBanner";
 import LogoutButton from "@/components/LogoutButton";
+import { accessForRestaurant } from "@/lib/access";
+import { getSession } from "@/lib/auth";
 import { BRAND_NAME } from "@/lib/brand";
+import { getRestaurantById } from "@/lib/repo";
 
 export default async function AdminLayout({
   children,
@@ -10,6 +14,15 @@ export default async function AdminLayout({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const session = await getSession();
+  const restaurant = session ? await getRestaurantById(session.restaurantId) : null;
+  const access = restaurant ? accessForRestaurant(restaurant) : null;
+  const banner =
+    access && access.phase === "trial"
+      ? { phase: "trial" as const, daysLeft: access.trialDaysLeft }
+      : access && access.phase === "past_due"
+        ? { phase: "past_due" as const, daysLeft: access.graceDaysLeft }
+        : null;
   const base = `/r/${slug}/admin`;
   const LINKS = [
     { href: base, label: "Tableau de bord" },
@@ -52,6 +65,7 @@ export default async function AdminLayout({
           ))}
         </nav>
       </header>
+      {banner ? <AdminAccessBanner slug={slug} phase={banner.phase} daysLeft={banner.daysLeft} /> : null}
       {children}
     </div>
   );

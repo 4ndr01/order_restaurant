@@ -1,5 +1,6 @@
 import "server-only";
 import type Stripe from "stripe";
+import { OrderingClosedError, orderingRefusal } from "./access";
 import { sendOrderReceipt } from "./order-receipt";
 import {
   attachCheckoutSession,
@@ -255,6 +256,10 @@ export async function createCheckoutForOrder(
   order: Order,
   baseUrl: string,
 ): Promise<string> {
+  const refusal = orderingRefusal(restaurant);
+  if (refusal) {
+    throw new OrderingClosedError(refusal);
+  }
   if (!restaurant.stripeAccountId) {
     throw new Error("Ce restaurant n'a pas de compte Stripe.");
   }

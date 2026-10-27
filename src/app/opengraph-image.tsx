@@ -51,7 +51,7 @@ export default function OpenGraphImage() {
           </div>
         </div>
         <div style={{ display: "flex", fontSize: 32, color: "#1f4d36" }}>
-          {`Abonnement Standard · ${price} · ${TRIAL_PERIOD_DAYS} jours d'essai`}
+          {`${TRIAL_PERIOD_DAYS} jours d'essai dès l'inscription, puis ${price}`}
         </div>
       </div>
     ),
