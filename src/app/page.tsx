@@ -1,69 +1,60 @@
-import Link from "next/link";
+import type { Metadata } from "next";
 import Analytics from "@/components/Analytics";
-import LegalLinks from "@/components/LegalLinks";
+import HomeLanding from "@/components/HomeLanding";
+import { publicSiteUrl } from "@/lib/base-url";
 import { BRAND_NAME } from "@/lib/brand";
-import { ANNOUNCED_PLAN, formatPlanPrice } from "@/lib/plans";
+import { ANNOUNCED_PLAN, TRIAL_PERIOD_DAYS, formatPlanPrice } from "@/lib/plans";
+
+const planName = `Abonnement ${ANNOUNCED_PLAN.label}`;
+const price = formatPlanPrice(ANNOUNCED_PLAN.priceCents);
+
+const title = `${BRAND_NAME} : commande à table, payée sur votre compte`;
+const description = `Commande à table par QR code. Paiements Stripe sur votre compte, sans commission. ${planName} à ${price}, ${TRIAL_PERIOD_DAYS} jours d'essai.`;
+
+export const metadata: Metadata = {
+  title,
+  description,
+  alternates: { canonical: "/" },
+  openGraph: {
+    title,
+    description,
+    url: "/",
+    siteName: BRAND_NAME,
+    locale: "fr_FR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+  },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: BRAND_NAME,
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  url: publicSiteUrl().origin,
+  offers: {
+    "@type": "Offer",
+    name: planName,
+    price: (ANNOUNCED_PLAN.priceCents / 100).toFixed(2),
+    priceCurrency: "EUR",
+    description: `${TRIAL_PERIOD_DAYS} jours d'essai à la première souscription. Aucune commission sur les commandes.`,
+  },
+};
 
 export default function HomePage() {
   return (
     <>
       <Analytics />
-      <header className="mx-auto w-full max-w-2xl px-6 pt-8">
-        <span className="text-lg font-extrabold tracking-tight">{BRAND_NAME}</span>
-      </header>
-
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-6 py-12">
-      <span className="inline-flex w-fit rounded-full bg-brand-soft px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-brand">
-        Commande à table
-      </span>
-      <h1 className="mt-4 text-4xl font-extrabold tracking-tight sm:text-5xl">
-        Le menu de votre restaurant, accessible par QR code
-      </h1>
-      <p className="mt-4 text-lg text-muted">
-        Vos clients scannent le QR code de leur table, commandent depuis leur téléphone et suivent
-        la préparation en direct. Votre cuisine reçoit les commandes en temps réel.
-      </p>
-
-      <p className="mt-4 inline-flex w-fit items-center gap-2 rounded-2xl bg-brand-soft px-4 py-3 text-sm font-semibold text-brand">
-        Gratuit pendant le lancement, puis {formatPlanPrice(ANNOUNCED_PLAN.priceCents)} — sans
-        engagement
-      </p>
-
-      <div className="mt-8 flex flex-wrap gap-3">
-        <Link
-          href="/signup"
-          className="card-float rounded-full bg-brand px-6 py-3.5 font-semibold text-white transition hover:bg-brand-strong"
-        >
-          Créer mon restaurant
-        </Link>
-        <Link
-          href="/login"
-          className="rounded-full bg-surface px-6 py-3.5 font-semibold text-foreground transition hover:bg-brand-soft hover:text-brand"
-        >
-          Se connecter
-        </Link>
-      </div>
-
-      <section className="mt-14 grid gap-4 sm:grid-cols-3">
-        {[
-          { title: "Le client scanne", text: "Un QR code par table ouvre le menu du jour." },
-          { title: "Il commande", text: "Panier, précisions cuisine, envoi en un geste." },
-          { title: "La cuisine suit", text: "Les commandes arrivent en direct sur l'écran." },
-        ].map((step, index) => (
-          <div key={step.title} className="card-float-sm rounded-3xl bg-surface p-5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
-              {index + 1}
-            </span>
-            <p className="mt-3 font-semibold">{step.title}</p>
-            <p className="mt-1 text-sm text-muted">{step.text}</p>
-          </div>
-        ))}
-      </section>
-      </main>
-
-      <footer className="mx-auto w-full max-w-2xl px-6 pb-8">
-        <LegalLinks />
-      </footer>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+      />
+      <HomeLanding />
     </>
   );
 }

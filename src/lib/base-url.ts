@@ -1,3 +1,24 @@
+const PRODUCTION_ORIGIN = "https://order-restaurant-1.onrender.com";
+
+/**
+ * Origine publique pour les URL absolues (canonique, Open Graph).
+ * `NEXT_PUBLIC_BASE_URL` prime. Sinon, l'adresse de production connue.
+ */
+export function publicSiteUrl(): URL {
+  const configured = process.env.NEXT_PUBLIC_BASE_URL?.trim();
+  if (configured) {
+    try {
+      const url = new URL(configured);
+      if (url.protocol === "http:" || url.protocol === "https:") {
+        return url;
+      }
+    } catch {
+      // Valeur illisible : on utilise l'adresse de production.
+    }
+  }
+  return new URL(PRODUCTION_ORIGIN);
+}
+
 export function resolveBaseUrl(
   headers: Headers,
   override?: string | null,
