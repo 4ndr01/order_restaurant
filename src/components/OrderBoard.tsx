@@ -5,9 +5,16 @@ import LegalLinks from "@/components/LegalLinks";
 import { allergenLabels } from "@/lib/allergens";
 import { api } from "@/lib/client";
 import { formatPrice } from "@/lib/format";
+import { optionsLabel, resolveOptions, type ChosenOption } from "@/lib/menu-options";
 import type { Category, MenuItem, Order, RestaurantTable } from "@/lib/types";
 
-type Cart = Record<string, number>;
+/** Une ligne par plat et par combinaison d'options : burger saignant ≠ burger à point. */
+type CartLine = { itemId: string; optionIds: string[]; quantity: number };
+type Cart = Record<string, CartLine>;
+
+function cartKey(itemId: string, optionIds: string[]): string {
+  return [itemId, ...[...optionIds].sort()].join("|");
+}
 
 export type PublicMenu = {
   categories: Category[];
@@ -21,6 +28,7 @@ export default function OrderBoard({
   tableId,
   menu,
   onlinePayment,
+  closedMessage = null,
 }: {
   restaurantSlug: string;
   restaurantName: string;
@@ -28,6 +36,8 @@ export default function OrderBoard({
   menu: PublicMenu;
   /** Le client paie en ligne avant que la commande parte en cuisine. */
   onlinePayment: boolean;
+  /** Restaurant fermé (à la main ou hors horaires) : la carte reste consultable. */
+  closedMessage?: string | null;
 }) {
   const [cart, setCart] = useState<Cart>({});
   const [note, setNote] = useState("");
@@ -35,36 +45,78 @@ export default function OrderBoard({
   const [selectedTable, setSelectedTable] = useState<string | null>(tableId);
   const [cartOpen, setCartOpen] = useState(false);
   const [zoomed, setZoomed] = useState<MenuItem | null>(null);
+  const [choosing, setChoosing] = useState<MenuItem | null>(null);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
 
-  const setQuantity = useCallback((itemId: string, quantity: number) => {
+  const setQuantity = useCallback((key: string, quantity: number) => {
     setCart((current) => {
       const next = { ...current };
       if (quantity <= 0) {
-        delete next[itemId];
-      } else {
-        next[itemId] = Math.min(quantity, 30);
+        delete next[key];
+      } else if (next[key]) {
+        next[key] = { ...next[key], quantity: Math.min(quantity, 30) };
       }
       return next;
     });
   }, []);
+
+  const addToCart = useCallback((itemId: string, optionIds: string[] = []) => {
+    setCart((current) => {
+      const key = cartKey(itemId, optionIds);
+      const quantity = Math.min((current[key]?.quantity ?? 0) + 1, 30);
+      return { ...current, [key]: { itemId, optionIds, quantity } };
+    });
+  }, []);
+
+  /** Un plat à options ouvre le choix ; les autres vont droit au panier. */
+  const requestAdd = useCallback(
+    (item: MenuItem) => {
+      if (item.optionGroups.length > 0) {
+        setChoosing(item);
+      } else {
+        addToCart(item.id);
+      }
+    },
+    [addToCart],
+  );
 
   const itemsById = useMemo(
     () => new Map(menu.items.map((item) => [item.id, item])),
     [menu],
   );
 
-  const lines = useMemo(
-    () =>
-      Object.entries(cart)
-        .map(([id, quantity]) => ({ item: itemsById.get(id), quantity }))
-        .filter((line): line is { item: MenuItem; quantity: number } => Boolean(line.item)),
-    [cart, itemsById],
-  );
+  const lines = useMemo(() => {
+    const result: {
+      key: string;
+      item: MenuItem;
+      optionIds: string[];
+      options: ChosenOption[];
+      unitPrice: number;
+      quantity: number;
+    }[] = [];
+    for (const [key, line] of Object.entries(cart)) {
+      const item = itemsById.get(line.itemId);
+      if (!item) continue;
+      const resolved = resolveOptions(item.optionGroups, line.optionIds);
+      if ("error" in resolved) continue;
+      result.push({
+        key,
+        item,
+        optionIds: line.optionIds,
+        options: resolved.options,
+        unitPrice: item.price + resolved.extra,
+        quantity: line.quantity,
+      });
+    }
+    return result;
+  }, [cart, itemsById]);
 
-  const count = lines.reduce((sum, line) => sum + line.quantity, 0);
-  const total = lines.reduce((sum, line) => sum + line.item.price * line.quantity, 0);
+  const canOrder = !closedMessage;
+  const count = canOrder ? lines.reduce((sum, line) => sum + line.quantity, 0) : 0;
+  const total = lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+  const countByItem = (itemId: string) =>
+    lines.reduce((sum, line) => (line.item.id === itemId ? sum + line.quantity : sum), 0);
 
   const knownTable = menu.tables.find((table) => table.id === tableId) ?? null;
   const tableUnknown = Boolean(tableId) && !knownTable;
@@ -80,7 +132,11 @@ export default function OrderBoard({
           tableId: selectedTable,
           note,
           customerEmail: onlinePayment ? "" : customerEmail,
-          lines: lines.map((line) => ({ menuItemId: line.item.id, quantity: line.quantity })),
+          lines: lines.map((line) => ({
+            menuItemId: line.item.id,
+            quantity: line.quantity,
+            optionIds: line.optionIds,
+          })),
         }),
       });
       if (order.checkoutUrl) {
@@ -127,6 +183,12 @@ export default function OrderBoard({
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-5">
+        {closedMessage && (
+          <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+            {closedMessage} Vous pouvez consulter la carte en attendant.
+          </p>
+        )}
+
         {tableUnknown && (
           <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             Cette table n&apos;existe plus. Choisissez votre table dans le panier avant de valider.
@@ -140,7 +202,10 @@ export default function OrderBoard({
               {menu.items
                 .filter((item) => item.categoryId === category.id)
                 .map((item) => {
-                  const quantity = cart[item.id] ?? 0;
+                  const hasOptions = item.optionGroups.length > 0;
+                  const quantity = hasOptions
+                    ? countByItem(item.id)
+                    : (cart[cartKey(item.id, [])]?.quantity ?? 0);
                   return (
                     <li
                       key={item.id}
@@ -178,18 +243,18 @@ export default function OrderBoard({
                           <p className="inline-flex rounded-full bg-brand-soft px-2.5 py-1 text-sm font-semibold text-brand">
                             {formatPrice(item.price)}
                           </p>
-                          {quantity === 0 ? (
+                          {!canOrder ? null : quantity === 0 || hasOptions ? (
                             <button
                               type="button"
-                              onClick={() => setQuantity(item.id, 1)}
+                              onClick={() => requestAdd(item)}
                               className="card-float-sm min-h-11 shrink-0 rounded-full bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-strong"
                             >
-                              Ajouter
+                              {hasOptions && quantity > 0 ? `Ajouter · ${quantity}` : "Ajouter"}
                             </button>
                           ) : (
                             <QuantityStepper
                               quantity={quantity}
-                              onChange={(next) => setQuantity(item.id, next)}
+                              onChange={(next) => setQuantity(cartKey(item.id, []), next)}
                             />
                           )}
                         </div>
@@ -264,16 +329,18 @@ export default function OrderBoard({
               )}
               <AllergenLine codes={zoomed.allergens} />
               <div className="mt-4 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQuantity(zoomed.id, (cart[zoomed.id] ?? 0) + 1);
-                    setZoomed(null);
-                  }}
-                  className="card-float-sm min-h-12 flex-1 rounded-full bg-brand px-5 font-semibold text-white transition hover:bg-brand-strong"
-                >
-                  Ajouter
-                </button>
+                {canOrder && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      requestAdd(zoomed);
+                      setZoomed(null);
+                    }}
+                    className="card-float-sm min-h-12 flex-1 rounded-full bg-brand px-5 font-semibold text-white transition hover:bg-brand-strong"
+                  >
+                    Ajouter
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setZoomed(null)}
@@ -287,7 +354,18 @@ export default function OrderBoard({
         </div>
       )}
 
-      {cartOpen && (
+      {choosing && (
+        <OptionsSheet
+          item={choosing}
+          onClose={() => setChoosing(null)}
+          onAdd={(optionIds) => {
+            addToCart(choosing.id, optionIds);
+            setChoosing(null);
+          }}
+        />
+      )}
+
+      {cartOpen && canOrder && (
         <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center">
           <button
             type="button"
@@ -310,16 +388,19 @@ export default function OrderBoard({
             <div className="flex-1 overflow-y-auto px-5 py-4">
             <ul className="space-y-3">
               {lines.map((line) => (
-                <li key={line.item.id} className="flex items-center justify-between gap-3">
+                <li key={line.key} className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate font-medium">{line.item.name}</p>
+                    {line.options.length > 0 && (
+                      <p className="text-sm text-foreground/70">{optionsLabel(line.options)}</p>
+                    )}
                     <p className="text-sm text-muted">
-                      {formatPrice(line.item.price * line.quantity)}
+                      {formatPrice(line.unitPrice * line.quantity)}
                     </p>
                   </div>
                   <QuantityStepper
                     quantity={line.quantity}
-                    onChange={(next) => setQuantity(line.item.id, next)}
+                    onChange={(next) => setQuantity(line.key, next)}
                   />
                 </li>
               ))}
@@ -408,6 +489,147 @@ export default function OrderBoard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Choix des options d'un plat (cuisson, sauce, suppléments) avant l'ajout au panier. */
+function OptionsSheet({
+  item,
+  onAdd,
+  onClose,
+}: {
+  item: MenuItem;
+  onAdd: (optionIds: string[]) => void;
+  onClose: () => void;
+}) {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [tried, setTried] = useState(false);
+
+  const resolved = resolveOptions(item.optionGroups, selected);
+  const price = item.price + ("error" in resolved ? 0 : resolved.extra);
+
+  function toggle(groupId: string, choiceId: string) {
+    const group = item.optionGroups.find((candidate) => candidate.id === groupId);
+    if (!group) return;
+    setSelected((current) => {
+      if (group.multiple) {
+        return current.includes(choiceId)
+          ? current.filter((id) => id !== choiceId)
+          : [...current, choiceId];
+      }
+      // Choix unique : remplace le choix précédent du groupe ; retouché, il s'efface
+      // (sauf si le groupe est obligatoire).
+      const others = current.filter((id) => !group.choices.some((choice) => choice.id === id));
+      if (current.includes(choiceId)) {
+        return group.required ? current : others;
+      }
+      return [...others, choiceId];
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+      <button
+        type="button"
+        aria-label="Fermer"
+        onClick={onClose}
+        className="absolute inset-0 animate-fade-in bg-black/50"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={item.name}
+        className="relative flex max-h-[92dvh] w-full max-w-lg animate-slide-up flex-col rounded-t-3xl bg-surface shadow-2xl sm:rounded-3xl"
+      >
+        <div className="px-5 pt-5">
+          <p className="text-lg font-extrabold tracking-tight">{item.name}</p>
+          {item.description && <p className="mt-1 text-sm text-muted">{item.description}</p>}
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-3">
+          {item.optionGroups.map((group) => {
+            const missing =
+              tried && group.required && !group.choices.some((choice) => selected.includes(choice.id));
+            return (
+              <fieldset key={group.id} className="mt-4 first:mt-1">
+                <legend className="flex w-full items-baseline justify-between gap-3">
+                  <span className="font-bold">{group.name}</span>
+                  <span
+                    className={`shrink-0 text-xs font-semibold ${missing ? "text-red-600" : "text-muted"}`}
+                  >
+                    {group.required ? "Obligatoire" : "Facultatif"}
+                    {group.multiple ? " · plusieurs choix" : ""}
+                  </span>
+                </legend>
+                <ul className="mt-2 space-y-1.5">
+                  {group.choices.map((choice) => {
+                    const active = selected.includes(choice.id);
+                    return (
+                      <li key={choice.id}>
+                        <button
+                          type="button"
+                          role={group.multiple ? "checkbox" : "radio"}
+                          aria-checked={active}
+                          onClick={() => toggle(group.id, choice.id)}
+                          className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl px-4 text-left transition ${
+                            active ? "bg-brand text-white" : "bg-brand-soft text-foreground"
+                          }`}
+                        >
+                          <span className="flex items-center gap-3">
+                            <span
+                              aria-hidden="true"
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center border-2 text-xs ${
+                                group.multiple ? "rounded-md" : "rounded-full"
+                              } ${active ? "border-white bg-white text-brand" : "border-brand/40"}`}
+                            >
+                              {active ? "✓" : ""}
+                            </span>
+                            <span className="font-medium">{choice.name}</span>
+                          </span>
+                          {choice.price > 0 && (
+                            <span className={`shrink-0 text-sm ${active ? "text-white" : "text-muted"}`}>
+                              + {formatPrice(choice.price)}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </fieldset>
+            );
+          })}
+        </div>
+
+        <div className="safe-bottom px-5 pt-3">
+          {tried && "error" in resolved && (
+            <p className="mb-2 text-sm text-red-600">{resolved.error}</p>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if ("error" in resolved) {
+                  setTried(true);
+                  return;
+                }
+                onAdd(selected);
+              }}
+              className="card-float-sm min-h-12 flex-1 rounded-full bg-brand px-5 font-semibold text-white transition hover:bg-brand-strong"
+            >
+              Ajouter · {formatPrice(price)}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="min-h-12 rounded-full bg-brand-soft px-5 font-medium text-brand"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

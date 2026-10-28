@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/client";
 import { formatPrice, formatTime } from "@/lib/format";
+import { optionsLabel } from "@/lib/menu-options";
 import { STATUS_LABELS, type Order, type OrderStatus } from "@/lib/types";
 
 const TIMELINE: OrderStatus[] = ["recue", "en_preparation", "prete", "servie"];
@@ -191,10 +192,13 @@ export default function OrderTracker({
           <span>Mise à jour {formatTime(order.updatedAt)}</span>
         </div>
         <ul className="mt-4 space-y-2">
-          {order.lines.map((line) => (
-            <li key={line.menuItemId} className="flex justify-between gap-4">
+          {order.lines.map((line, index) => (
+            <li key={`${line.menuItemId}-${index}`} className="flex justify-between gap-4">
               <span>
                 {line.quantity} × {line.name}
+                {line.options && line.options.length > 0 && (
+                  <span className="block text-sm text-muted">{optionsLabel(line.options)}</span>
+                )}
               </span>
               <span className="text-muted">{formatPrice(line.unitPrice * line.quantity)}</span>
             </li>

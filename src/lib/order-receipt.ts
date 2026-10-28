@@ -2,6 +2,7 @@ import "server-only";
 import { BRAND_NAME } from "./brand";
 import { sendEmail } from "./email";
 import { formatPrice, formatTime } from "./format";
+import { optionsLabel } from "./menu-options";
 import type { Order } from "./types";
 
 /**
@@ -18,7 +19,13 @@ export async function sendOrderReceipt(
   }
 
   const lines = order.lines
-    .map((line) => `  ${line.quantity} × ${line.name} — ${formatPrice(line.unitPrice * line.quantity)}`)
+    .map((line) => {
+      const options = optionsLabel(line.options);
+      return (
+        `  ${line.quantity} × ${line.name} — ${formatPrice(line.unitPrice * line.quantity)}` +
+        (options ? `\n      ${options}` : "")
+      );
+    })
     .join("\n");
 
   const note = order.note ? `\nVotre précision : ${order.note}\n` : "";

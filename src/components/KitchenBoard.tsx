@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "@/lib/client";
 import { formatPrice, formatTime, minutesSince } from "@/lib/format";
+import { optionsLabel } from "@/lib/menu-options";
 import { STATUS_LABELS, type Order, type OrderStatus } from "@/lib/types";
 
 const NEXT_STATUS: Partial<Record<OrderStatus, { status: OrderStatus; label: string }>> = {
@@ -42,7 +43,14 @@ function playChime(context: AudioContext) {
   });
 }
 
-export default function KitchenBoard({ initialOrders }: { initialOrders: Order[] }) {
+export default function KitchenBoard({
+  initialOrders,
+  serviceControls,
+}: {
+  initialOrders: Order[];
+  /** Interrupteur des commandes, à portée de main pendant le service. */
+  serviceControls?: ReactNode;
+}) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [showArchive, setShowArchive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -175,6 +183,8 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
         </div>
       </div>
 
+      {serviceControls && <div className="mt-5">{serviceControls}</div>}
+
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
       {visible.length === 0 ? (
@@ -209,11 +219,16 @@ export default function KitchenBoard({ initialOrders }: { initialOrders: Order[]
                 </div>
 
                 <ul className="mt-4 space-y-1.5">
-                  {order.lines.map((line) => (
-                    <li key={line.menuItemId} className="flex justify-between gap-4">
+                  {order.lines.map((line, index) => (
+                    <li key={`${line.menuItemId}-${index}`} className="flex justify-between gap-4">
                       <span>
                         <span className="font-semibold text-brand">{line.quantity}×</span>{" "}
                         {line.name}
+                        {line.options && line.options.length > 0 && (
+                          <span className="block text-sm font-semibold text-amber-800">
+                            {optionsLabel(line.options)}
+                          </span>
+                        )}
                       </span>
                       <span className="text-sm text-muted">
                         {formatPrice(line.unitPrice * line.quantity)}

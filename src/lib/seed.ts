@@ -1,6 +1,7 @@
 import "server-only";
 import type { Allergen } from "./allergens";
 import { createId, sql } from "./db";
+import { normalizeOptionGroups } from "./menu-options";
 
 type SeedCategory = { key: string; name: string };
 type SeedItem = {
@@ -9,6 +10,8 @@ type SeedItem = {
   description: string;
   price: number;
   allergens: Allergen[];
+  /** Exemple d'options, au format de l'éditeur (identifiants générés à l'insertion). */
+  options?: { name: string; required: boolean; multiple: boolean; choices: [string, number][] }[];
 };
 
 const CATEGORIES: SeedCategory[] = [
@@ -39,6 +42,20 @@ const ITEMS: SeedItem[] = [
     description: "Frites maison, beurre d'herbes, salade",
     price: 22,
     allergens: ["lait"],
+    options: [
+      {
+        name: "Cuisson",
+        required: true,
+        multiple: false,
+        choices: [["Bleue", 0], ["Saignante", 0], ["À point", 0], ["Bien cuite", 0]],
+      },
+      {
+        name: "Suppléments",
+        required: false,
+        multiple: true,
+        choices: [["Sauce au poivre", 2], ["Sauce béarnaise", 2], ["Frites en plus", 3]],
+      },
+    ],
   },
   {
     categoryKey: "plats",
@@ -86,12 +103,20 @@ export async function seedRestaurant(restaurantId: string): Promise<void> {
     if (!categoryId) {
       throw new Error(`Catégorie de seed inconnue : ${item.categoryKey}`);
     }
+    const optionGroups = normalizeOptionGroups(
+      (item.options ?? []).map((group) => ({
+        ...group,
+        choices: group.choices.map(([name, price]) => ({ name, price })),
+      })),
+    );
     await sql`
       INSERT INTO menu_items (
-        id, restaurant_id, category_id, name, description, price, available, allergens
+        id, restaurant_id, category_id, name, description, price, available, allergens,
+        option_groups
       ) VALUES (
         ${createId()}, ${restaurantId}, ${categoryId}, ${item.name},
-        ${item.description}, ${item.price}, true, ${sql.array(item.allergens)}::text[]
+        ${item.description}, ${item.price}, true, ${sql.array(item.allergens)}::text[],
+        ${sql.json(optionGroups)}
       )
     `;
   }

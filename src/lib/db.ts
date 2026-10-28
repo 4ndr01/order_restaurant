@@ -128,6 +128,14 @@ async function migrate(): Promise<void> {
       ADD COLUMN IF NOT EXISTS stripe_status_since timestamptz
   `;
   await backfillPlatformTrials();
+  // Prise de commande : interrupteur manuel du restaurateur et horaires
+  // (src/lib/service-hours.ts). Sans horaires, les commandes sont ouvertes
+  // à toute heure, comme avant.
+  await sql`
+    ALTER TABLE restaurants
+      ADD COLUMN IF NOT EXISTS orders_paused boolean NOT NULL DEFAULT false,
+      ADD COLUMN IF NOT EXISTS opening_hours jsonb
+  `;
   await sql`
     CREATE TABLE IF NOT EXISTS restaurant_owners (
       id text PRIMARY KEY,
@@ -177,6 +185,10 @@ async function migrate(): Promise<void> {
   // src/lib/allergens.ts). Vide tant que le restaurant n'a rien coché.
   await sql`
     ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS allergens text[] NOT NULL DEFAULT '{}'
+  `;
+  // Groupes d'options du plat (cuisson, suppléments…), voir src/lib/menu-options.ts.
+  await sql`
+    ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS option_groups jsonb NOT NULL DEFAULT '[]'
   `;
   await sql`
     CREATE TABLE IF NOT EXISTS menu_item_photos (

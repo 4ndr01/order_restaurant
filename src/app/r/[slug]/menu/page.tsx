@@ -5,6 +5,7 @@ import OrderBoard from "@/components/OrderBoard";
 import OrdersUnavailable from "@/components/OrdersUnavailable";
 import { orderingRefusal } from "@/lib/access";
 import { getPublicMenu, getRestaurantBySlug } from "@/lib/repo";
+import { serviceRefusal } from "@/lib/service-hours";
 import { isStripeConfigured } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,7 @@ export default async function MenuPage({ params }: { params: Promise<{ slug: str
         tableId={null}
         menu={menu}
         onlinePayment={restaurant.onlinePayment && isStripeConfigured()}
+        closedMessage={serviceRefusal(restaurant)}
       />
     </>
   );

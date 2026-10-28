@@ -1,6 +1,7 @@
 import "server-only";
 import type Stripe from "stripe";
 import { OrderingClosedError, orderingRefusal } from "./access";
+import { optionsLabel } from "./menu-options";
 import { sendOrderReceipt } from "./order-receipt";
 import {
   attachCheckoutSession,
@@ -279,7 +280,10 @@ export async function createCheckoutForOrder(
             price_data: {
               currency: "eur",
               unit_amount: toCents(line.unitPrice),
-              product_data: { name: line.name },
+              // Stripe refuse une description vide : on ne l'envoie qu'avec des options.
+              product_data: optionsLabel(line.options)
+                ? { name: line.name, description: optionsLabel(line.options).slice(0, 500) }
+                : { name: line.name },
             },
           })),
         customer_email: order.customerEmail ?? undefined,

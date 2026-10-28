@@ -159,6 +159,8 @@ export async function signup(
       trialStartedAt: trialStartedAt.toISOString(),
       trialEndsAt: trialEndsAt.toISOString(),
       stripeStatusSince: null,
+      ordersPaused: false,
+      openingHours: null,
     },
     session,
   };

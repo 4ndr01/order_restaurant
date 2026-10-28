@@ -41,6 +41,7 @@ export async function POST(request: Request) {
     price,
     available: body.available !== false,
     allergens: body.allergens,
+    optionGroups: body.optionGroups,
   });
 
   if ("error" in result) {

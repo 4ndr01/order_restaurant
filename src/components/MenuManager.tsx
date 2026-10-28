@@ -2,10 +2,12 @@
 
 import { useCallback, useState } from "react";
 import AllergenPicker from "@/components/AllergenPicker";
+import OptionGroupsEditor from "@/components/OptionGroupsEditor";
 import { api } from "@/lib/client";
 import { allergenLabels, type Allergen } from "@/lib/allergens";
 import { formatPrice } from "@/lib/format";
 import { shrinkPhoto } from "@/lib/image-client";
+import type { OptionGroup } from "@/lib/menu-options";
 import type { Category, MenuItem } from "@/lib/types";
 
 export type MenuPayload = {
@@ -13,7 +15,14 @@ export type MenuPayload = {
   items: MenuItem[];
 };
 
-const EMPTY_ITEM = { name: "", description: "", price: "", categoryId: "", allergens: [] as Allergen[] };
+const EMPTY_ITEM = {
+  name: "",
+  description: "",
+  price: "",
+  categoryId: "",
+  allergens: [] as Allergen[],
+  optionGroups: [] as OptionGroup[],
+};
 
 export default function MenuManager({ initialData }: { initialData: MenuPayload }) {
   const [data, setData] = useState<MenuPayload>(initialData);
@@ -107,6 +116,10 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
             value={newItem.allergens}
             onChange={(allergens) => setNewItem({ ...newItem, allergens })}
           />
+          <OptionGroupsEditor
+            value={newItem.optionGroups}
+            onChange={(optionGroups) => setNewItem({ ...newItem, optionGroups })}
+          />
           <select
             value={targetCategoryId}
             onChange={(event) => setNewItem({ ...newItem, categoryId: event.target.value })}
@@ -193,6 +206,7 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                                   price: Number(editing.price),
                                   categoryId: editing.categoryId,
                                   allergens: editing.allergens,
+                                  optionGroups: editing.optionGroups,
                                 }),
                               });
                               setEditing(null);
@@ -228,6 +242,10 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                           <AllergenPicker
                             value={editing.allergens}
                             onChange={(allergens) => setEditing({ ...editing, allergens })}
+                          />
+                          <OptionGroupsEditor
+                            value={editing.optionGroups}
+                            onChange={(optionGroups) => setEditing({ ...editing, optionGroups })}
                           />
                           <select
                             value={editing.categoryId}
@@ -288,6 +306,11 @@ export default function MenuManager({ initialData }: { initialData: MenuPayload 
                                 ? `Allergènes : ${allergenLabels(item.allergens).join(", ")}`
                                 : "Aucun allergène coché"}
                             </p>
+                            {item.optionGroups.length > 0 && (
+                              <p className="mt-0.5 text-xs text-muted">
+                                Options : {item.optionGroups.map((group) => group.name).join(", ")}
+                              </p>
+                            )}
                           </div>
                           <span className="shrink-0 font-semibold">{formatPrice(item.price)}</span>
                         </div>

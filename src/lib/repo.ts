@@ -1,6 +1,8 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { normalizeAllergens } from "./allergens";
+import { normalizeOptionGroups, resolveOptions } from "./menu-options";
+import { normalizeOpeningHours, serviceRefusal, type OpeningHours } from "./service-hours";
 import { createId, ensureSchema, sql } from "./db";
 import { orderingRefusal } from "./access";
 import { LAUNCH_PLAN, subscriptionOutranks } from "./plans";
@@ -27,6 +29,7 @@ type MenuItemRow = {
   available: boolean;
   photo_updated_at: Date | null;
   allergens: string[] | null;
+  option_groups: unknown;
 };
 type TableRow = { id: string; restaurant_id: string; name: string };
 type OrderRow = {
@@ -62,6 +65,7 @@ function mapMenuItem(row: MenuItemRow): MenuItem {
     available: row.available,
     photoUrl: photoUrl(row.id, row.photo_updated_at),
     allergens: normalizeAllergens(row.allergens),
+    optionGroups: normalizeOptionGroups(row.option_groups),
   };
 }
 
@@ -108,6 +112,8 @@ type RestaurantRow = {
   trial_started_at: Date | null;
   trial_ends_at: Date | null;
   stripe_status_since: Date | null;
+  orders_paused: boolean;
+  opening_hours: unknown;
 };
 
 function iso(value: Date | null): string | null {
@@ -143,6 +149,8 @@ function mapRestaurant(row: RestaurantRow): Restaurant {
     trialStartedAt: iso(row.trial_started_at),
     trialEndsAt: iso(row.trial_ends_at),
     stripeStatusSince: billingHere ? iso(row.stripe_status_since) : null,
+    ordersPaused: row.orders_paused,
+    openingHours: normalizeOpeningHours(row.opening_hours),
   };
 }
 
@@ -151,7 +159,7 @@ function restaurantColumns() {
     id, slug, name, plan, price_cents, stripe_account_id, stripe_charges_enabled,
     stripe_account_mode, stripe_customer_id, stripe_subscription_id,
     stripe_subscription_status, stripe_billing_mode, stripe_trial_consumed,
-    trial_started_at, trial_ends_at, stripe_status_since
+    trial_started_at, trial_ends_at, stripe_status_since, orders_paused, opening_hours
   `;
 }
 
@@ -394,6 +402,32 @@ export async function getPublicMenu(restaurantId: string) {
   return { categories, items, tables };
 }
 
+// ---- Prise de commande (fermeture manuelle, horaires) ----
+
+/**
+ * Met à jour l'interrupteur des commandes et/ou les horaires. `openingHours`
+ * à null : commandes à toute heure. Renvoie le restaurant à jour.
+ */
+export async function updateRestaurantService(
+  restaurantId: string,
+  patch: { ordersPaused?: boolean; openingHours?: OpeningHours | null },
+): Promise<Restaurant | null> {
+  await ensureSchema();
+  if (patch.ordersPaused !== undefined) {
+    await sql`
+      UPDATE restaurants SET orders_paused = ${patch.ordersPaused} WHERE id = ${restaurantId}
+    `;
+  }
+  if (patch.openingHours !== undefined) {
+    await sql`
+      UPDATE restaurants
+      SET opening_hours = ${patch.openingHours ? sql.json(patch.openingHours) : null}
+      WHERE id = ${restaurantId}
+    `;
+  }
+  return getRestaurantById(restaurantId);
+}
+
 // ---- Menu (écriture, admin) ----
 
 export async function createCategory(restaurantId: string, name: string): Promise<Category> {
@@ -441,6 +475,7 @@ export async function createMenuItem(
     price: number;
     available: boolean;
     allergens?: unknown;
+    optionGroups?: unknown;
   },
 ): Promise<MenuItem | { error: string }> {
   await ensureSchema();
@@ -452,13 +487,15 @@ export async function createMenuItem(
   }
   const id = createId();
   const allergens = normalizeAllergens(data.allergens);
+  const optionGroups = normalizeOptionGroups(data.optionGroups);
   await sql`
     INSERT INTO menu_items (
-      id, restaurant_id, category_id, name, description, price, available, allergens
+      id, restaurant_id, category_id, name, description, price, available, allergens,
+      option_groups
     ) VALUES (
       ${id}, ${restaurantId}, ${data.categoryId}, ${data.name.slice(0, 80)},
       ${data.description.slice(0, 200)}, ${Math.round(data.price * 100) / 100}, ${data.available},
-      ${sql.array(allergens)}::text[]
+      ${sql.array(allergens)}::text[], ${sql.json(optionGroups)}
     )
   `;
   return {
@@ -471,6 +508,7 @@ export async function createMenuItem(
     available: data.available,
     photoUrl: null,
     allergens,
+    optionGroups,
   };
 }
 
@@ -484,6 +522,7 @@ export async function updateMenuItem(
     categoryId?: string;
     available?: boolean;
     allergens?: unknown;
+    optionGroups?: unknown;
   },
 ): Promise<MenuItem | { error: string }> {
   await ensureSchema();
@@ -517,6 +556,9 @@ export async function updateMenuItem(
     allergens: normalizeAllergens(
       patch.allergens !== undefined ? patch.allergens : existing.allergens,
     ),
+    optionGroups: normalizeOptionGroups(
+      patch.optionGroups !== undefined ? patch.optionGroups : existing.option_groups,
+    ),
   };
 
   await sql`
@@ -526,7 +568,8 @@ export async function updateMenuItem(
       price = ${next.price},
       category_id = ${next.categoryId},
       available = ${next.available},
-      allergens = ${sql.array(next.allergens)}::text[]
+      allergens = ${sql.array(next.allergens)}::text[],
+      option_groups = ${sql.json(next.optionGroups)}
     WHERE id = ${itemId} AND restaurant_id = ${restaurantId}
   `;
 
@@ -657,7 +700,7 @@ export async function getTable(
 
 // ---- Commandes ----
 
-type IncomingLine = { menuItemId?: unknown; quantity?: unknown };
+type IncomingLine = { menuItemId?: unknown; quantity?: unknown; optionIds?: unknown };
 
 export async function createOrder(
   restaurantId: string,
@@ -676,7 +719,7 @@ export async function createOrder(
   if (!restaurant) {
     return { error: "Restaurant introuvable." };
   }
-  const refusal = orderingRefusal(restaurant);
+  const refusal = orderingRefusal(restaurant) ?? serviceRefusal(restaurant);
   if (refusal) {
     return { error: refusal, closed: true };
   }
@@ -703,7 +746,7 @@ export async function createOrder(
 
   const lines: OrderLine[] = [];
   for (const line of input.lines) {
-    const item = menuById.get(line.menuItemId as string);
+    const item = line && typeof line === "object" ? menuById.get(line.menuItemId as string) : null;
     if (!item) {
       return { error: "Un plat sélectionné n'est plus disponible." };
     }
@@ -711,11 +754,17 @@ export async function createOrder(
     if (!Number.isFinite(quantity) || quantity < 1 || quantity > 30) {
       return { error: "Quantité invalide." };
     }
+    // Le supplément est recalculé à partir de la carte, jamais repris du client.
+    const resolved = resolveOptions(normalizeOptionGroups(item.option_groups), line.optionIds);
+    if ("error" in resolved) {
+      return { error: `${item.name} : ${resolved.error}` };
+    }
     lines.push({
       menuItemId: item.id,
       name: item.name,
-      unitPrice: Number(item.price),
+      unitPrice: Math.round((Number(item.price) + resolved.extra) * 100) / 100,
       quantity,
+      ...(resolved.options.length > 0 ? { options: resolved.options } : {}),
     });
   }
 

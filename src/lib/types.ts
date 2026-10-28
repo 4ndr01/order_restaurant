@@ -1,4 +1,6 @@
 import type { Allergen } from "./allergens";
+import type { ChosenOption, OptionGroup } from "./menu-options";
+import type { OpeningHours } from "./service-hours";
 
 export type Restaurant = {
   id: string;
@@ -30,6 +32,10 @@ export type Restaurant = {
    * Sert à limiter la grâce d'un prélèvement en échec.
    */
   stripeStatusSince: string | null;
+  /** Commandes coupées à la main par le restaurateur (fin de service, rush…). */
+  ordersPaused: boolean;
+  /** Horaires de prise de commande, null si le restaurant prend des commandes à toute heure. */
+  openingHours: OpeningHours | null;
 };
 
 export type Category = {
@@ -51,6 +57,8 @@ export type MenuItem = {
   photoUrl: string | null;
   /** Allergènes à déclaration obligatoire présents dans le plat. */
   allergens: Allergen[];
+  /** Cuisson, sauce, suppléments… vide si le plat se commande tel quel. */
+  optionGroups: OptionGroup[];
 };
 
 export type RestaurantTable = {
@@ -89,8 +97,11 @@ export type PaymentStatus = "non_requis" | "en_attente" | "paye" | "expire" | "r
 export type OrderLine = {
   menuItemId: string;
   name: string;
+  /** Prix d'une unité, suppléments compris. */
   unitPrice: number;
   quantity: number;
+  /** Options choisies. Absent sur les commandes passées avant les options. */
+  options?: ChosenOption[];
 };
 
 export type Order = {

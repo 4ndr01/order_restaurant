@@ -20,6 +20,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     categoryId: typeof body.categoryId === "string" ? body.categoryId : undefined,
     available: typeof body.available === "boolean" ? body.available : undefined,
     allergens: Array.isArray(body.allergens) ? body.allergens : undefined,
+    optionGroups: Array.isArray(body.optionGroups) ? body.optionGroups : undefined,
   });
 
   if ("error" in result) {

@@ -1,4 +1,5 @@
 import { formatTime, parisDay } from "./format";
+import { optionsLabel } from "./menu-options";
 import { STATUS_LABELS, type Order, type PaymentStatus } from "./types";
 
 const PAYMENT_LABELS: Record<PaymentStatus, string> = {
@@ -53,7 +54,14 @@ export function ordersToCsv(orders: Order[]): string {
         text(order.tableName),
         text(STATUS_LABELS[order.status]),
         text(PAYMENT_LABELS[order.paymentStatus]),
-        text(order.lines.map((line) => `${line.quantity} × ${line.name}`).join(", ")),
+        text(
+          order.lines
+            .map((line) => {
+              const options = optionsLabel(line.options);
+              return `${line.quantity} × ${line.name}${options ? ` (${options})` : ""}`;
+            })
+            .join(", "),
+        ),
         String(order.lines.reduce((sum, line) => sum + line.quantity, 0)),
         amount(order.total),
         text(order.note),
