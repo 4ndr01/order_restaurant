@@ -158,7 +158,7 @@ export default function HomeLanding() {
         <section id="fonctionnement" aria-labelledby="fonctionnement-titre" className="scroll-mt-28 bg-surface">
           <div className="mx-auto w-full max-w-6xl px-5 py-16">
             <h2 id="fonctionnement-titre" className={sectionTitle}>
-              Prêt pour le prochain service
+              La commande à table en trois étapes
             </h2>
             <p className="mt-3 max-w-2xl text-lg text-muted">
               Trois étapes, de l&apos;inscription à la première commande.{" "}
@@ -183,7 +183,7 @@ export default function HomeLanding() {
         <section id="avantages" aria-labelledby="avantages-titre" className="scroll-mt-28">
           <div className="mx-auto w-full max-w-6xl px-5 py-16">
             <h2 id="avantages-titre" className={sectionTitle}>
-              Tout ce qu&apos;il faut pour le service
+              Tout pour le service, du QR code à la cuisine
             </h2>
             <p className="mt-3 max-w-2xl text-lg text-muted">
               Tout est inclus dans l&apos;abonnement, sans option payante.{" "}
