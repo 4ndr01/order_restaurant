@@ -1,14 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { api } from "@/lib/client";
+
+const CODE_LENGTH = 8;
+const LINK_PASTED =
+  "Ceci est le lien de la page, et vous y êtes déjà. Saisissez ici le code équipe : 8 caractères, du type K7P4-9XQ2.";
+
+function looksLikeLink(text: string): boolean {
+  return /https?:|\/|www\.|\.kim/i.test(text);
+}
 
 export default function TeamLoginForm({
   slug,
   restaurantName,
+  ownerNotice = null,
 }: {
   slug: string;
   restaurantName: string;
+  /** Avertissement quand le responsable lui-même est connecté sur ce navigateur. */
+  ownerNotice?: ReactNode;
 }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -16,6 +27,14 @@ export default function TeamLoginForm({
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (looksLikeLink(code)) {
+      setError(LINK_PASTED);
+      return;
+    }
+    if (code.toUpperCase().replace(/[^A-Z0-9]/g, "").length !== CODE_LENGTH) {
+      setError("Le code équipe fait 8 caractères, du type K7P4-9XQ2.");
+      return;
+    }
     setPending(true);
     setError(null);
     try {
@@ -40,13 +59,26 @@ export default function TeamLoginForm({
         Saisissez le code équipe donné par votre responsable pour ouvrir l&apos;écran cuisine.
       </p>
 
+      {ownerNotice}
+
       <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
         <label className="block text-sm">
           <span className="font-medium text-muted">Code équipe</span>
           <input
             required
             value={code}
-            onChange={(event) => setCode(event.target.value)}
+            onChange={(event) => {
+              setCode(event.target.value);
+              setError(null);
+            }}
+            onPaste={(event) => {
+              // Le lien de la page collé à la place du code : on l'explique
+              // plutôt que de laisser le champ le tronquer en silence.
+              if (looksLikeLink(event.clipboardData.getData("text"))) {
+                event.preventDefault();
+                setError(LINK_PASTED);
+              }
+            }}
             autoCapitalize="characters"
             autoComplete="off"
             spellCheck={false}

@@ -100,8 +100,10 @@ export default function TeamAccess({
       {createdAt && (
         <div className="mt-4 text-sm">
           <p className="text-muted">
-            Code actif depuis le {dateFormat.format(new Date(createdAt))}. Votre équipe se
-            connecte ici :
+            Code actif depuis le {dateFormat.format(new Date(createdAt))}.
+          </p>
+          <p className="mt-2 font-medium">
+            1. Ouvrez ce lien sur la tablette ou le téléphone de l&apos;équipe :
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <code className="min-w-0 break-all rounded-xl bg-brand-soft px-3 py-2 font-medium text-brand">
@@ -115,6 +117,9 @@ export default function TeamAccess({
               {copied ? "Lien copié ✓" : "Copier le lien"}
             </button>
           </div>
+          <p className="mt-3 font-medium">
+            2. Sur cette page, tapez le code équipe{freshCode ? ` : ${freshCode}` : " (8 caractères)"}.
+          </p>
         </div>
       )}
 
