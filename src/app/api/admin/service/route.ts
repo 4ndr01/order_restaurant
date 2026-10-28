@@ -10,7 +10,9 @@ export const dynamic = "force-dynamic";
  * commandes sont fermées en ce moment, la raison affichée aux clients.
  */
 export async function PATCH(request: Request) {
-  const auth = await requireSession();
+  // L'équipe peut fermer ou rouvrir les commandes pendant le service ; les
+  // horaires restent l'affaire du responsable.
+  const auth = await requireSession({ allowTeam: true });
   if ("response" in auth) return auth.response;
 
   const body = await request.json().catch(() => null);
@@ -21,6 +23,9 @@ export async function PATCH(request: Request) {
   const patch: Parameters<typeof updateRestaurantService>[1] = {};
   if (typeof body.ordersPaused === "boolean") {
     patch.ordersPaused = body.ordersPaused;
+  }
+  if (body.openingHours !== undefined && auth.session.role !== "owner") {
+    return Response.json({ error: "Réservé au responsable du restaurant." }, { status: 403 });
   }
   if (body.openingHours === null) {
     patch.openingHours = null;

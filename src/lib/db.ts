@@ -136,6 +136,12 @@ async function migrate(): Promise<void> {
       ADD COLUMN IF NOT EXISTS orders_paused boolean NOT NULL DEFAULT false,
       ADD COLUMN IF NOT EXISTS opening_hours jsonb
   `;
+  // Accès équipe : empreinte du code (jamais le code lui-même), voir auth.ts.
+  await sql`
+    ALTER TABLE restaurants
+      ADD COLUMN IF NOT EXISTS team_code_hash text,
+      ADD COLUMN IF NOT EXISTS team_code_created_at timestamptz
+  `;
   await sql`
     CREATE TABLE IF NOT EXISTS restaurant_owners (
       id text PRIMARY KEY,

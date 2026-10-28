@@ -17,6 +17,7 @@ export default async function KitchenPage() {
   return (
     <KitchenBoard
       initialOrders={orders}
+      canRefund={session.role === "owner"}
       serviceControls={
         restaurant && (
           <ServiceControls

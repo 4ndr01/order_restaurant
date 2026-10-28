@@ -46,8 +46,11 @@ function playChime(context: AudioContext) {
 export default function KitchenBoard({
   initialOrders,
   serviceControls,
+  canRefund = true,
 }: {
   initialOrders: Order[];
+  /** Faux pour l'équipe : annuler une commande payée rembourse le client. */
+  canRefund?: boolean;
   /** Interrupteur des commandes, à portée de main pendant le service. */
   serviceControls?: ReactNode;
 }) {
@@ -258,7 +261,8 @@ export default function KitchenBoard({
                     )}
                   </span>
                   <div className="flex flex-1 justify-end gap-2">
-                    {OPEN_STATUSES.includes(order.status) && (
+                    {OPEN_STATUSES.includes(order.status) &&
+                      (canRefund || order.paymentStatus !== "paye") && (
                       <button
                         type="button"
                         onClick={() => changeStatus(order.id, "annulee")}

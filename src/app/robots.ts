@@ -26,6 +26,7 @@ export default function robots(): MetadataRoute.Robots {
         "/r/*/admin",
         "/r/*/table",
         "/r/*/commande",
+        "/r/*/equipe",
       ],
     },
     sitemap: new URL("/sitemap.xml", origin).href,

@@ -1,5 +1,5 @@
 import StripeConnectButton from "@/components/StripeConnectButton";
-import { getSession } from "@/lib/auth";
+import { getOwnerSession } from "@/lib/auth";
 import { forgetUnreachableAccount, syncAccountStatus, type AccountState } from "@/lib/payments";
 import { getRestaurantById } from "@/lib/repo";
 import { isStripeConfigured } from "@/lib/stripe";
@@ -8,7 +8,7 @@ import { currentStripeMode } from "@/lib/stripe-mode";
 export const dynamic = "force-dynamic";
 
 export default async function PaymentsPage() {
-  const session = await getSession();
+  const session = await getOwnerSession();
   if (!session) return null;
 
   const restaurant = await getRestaurantById(session.restaurantId);

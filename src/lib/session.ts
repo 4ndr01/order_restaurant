@@ -26,10 +26,19 @@ export const SESSION_COOKIE = "session";
 const SESSION_DURATION = "30d";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
+/**
+ * - owner : le restaurateur, accès complet à son espace ;
+ * - team : son équipe, connectée avec le code équipe, limitée à l'écran
+ *   cuisine et à l'ouverture / fermeture des commandes.
+ */
+export type SessionRole = "owner" | "team";
+
 export type SessionPayload = {
   restaurantId: string;
+  /** Vide pour une session équipe. */
   ownerId: string;
   slug: string;
+  role: SessionRole;
   /** Empreinte du mot de passe à l'ouverture : la changer ferme les sessions ouvertes. */
   pwd: string;
 };
@@ -55,6 +64,8 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
         restaurantId: payload.restaurantId,
         ownerId: payload.ownerId,
         slug: payload.slug,
+        // Les sessions ouvertes avant l'accès équipe sont celles du restaurateur.
+        role: payload.role === "team" ? "team" : "owner",
         pwd: payload.pwd,
       };
     }

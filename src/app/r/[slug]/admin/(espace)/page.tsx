@@ -1,6 +1,9 @@
+import { headers } from "next/headers";
 import Link from "next/link";
 import ServiceControls from "@/components/ServiceControls";
-import { getSession } from "@/lib/auth";
+import TeamAccess from "@/components/TeamAccess";
+import { getOwnerSession, getTeamAccess } from "@/lib/auth";
+import { resolveBaseUrl } from "@/lib/base-url";
 import { formatPrice, parisDay } from "@/lib/format";
 import { getMenuViewStats, getRestaurantById, listMenuItems, listOrders } from "@/lib/repo";
 import { serviceRefusal } from "@/lib/service-hours";
@@ -9,14 +12,16 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminHomePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const session = await getSession();
+  const session = await getOwnerSession();
   if (!session) return null; // garanti par proxy.ts, ceinture et bretelles
 
-  const [restaurant, orders, menuItems, views] = await Promise.all([
+  const [restaurant, orders, menuItems, views, teamAccess, requestHeaders] = await Promise.all([
     getRestaurantById(session.restaurantId),
     listOrders(session.restaurantId),
     listMenuItems(session.restaurantId),
     getMenuViewStats(session.restaurantId),
+    getTeamAccess(session.restaurantId),
+    headers(),
   ]);
 
   // « Aujourd'hui » à l'heure de Paris, comme le compteur d'ouvertures du menu.
@@ -101,6 +106,11 @@ export default async function AdminHomePage({ params }: { params: Promise<{ slug
           </Link>
         ))}
       </div>
+
+      <TeamAccess
+        teamUrl={`${resolveBaseUrl(requestHeaders)}/r/${slug}/equipe`}
+        initialCreatedAt={teamAccess?.createdAt ?? null}
+      />
 
       <section className="card-float-sm mt-8 rounded-3xl bg-surface p-5">
         <h2 className="font-bold">Exporter les commandes</h2>

@@ -6,7 +6,8 @@ import { ORDER_STATUSES } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const auth = await requireSession();
+  // L'écran cuisine de l'équipe s'actualise avec cette route.
+  const auth = await requireSession({ allowTeam: true });
   if ("response" in auth) return auth.response;
 
   const statusParam = new URL(request.url).searchParams.get("status");

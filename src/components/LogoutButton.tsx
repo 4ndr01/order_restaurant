@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/client";
 
-export default function LogoutButton() {
+/** `redirectTo` : page affichée après la déconnexion (l'équipe revient à son code). */
+export default function LogoutButton({ redirectTo = "/login" }: { redirectTo?: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
@@ -13,7 +14,7 @@ export default function LogoutButton() {
     try {
       await api("/api/auth/logout", { method: "POST" });
     } finally {
-      router.push("/login");
+      router.push(redirectTo);
       router.refresh();
     }
   }

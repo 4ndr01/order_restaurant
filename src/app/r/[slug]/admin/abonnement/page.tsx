@@ -1,6 +1,6 @@
 import SubscriptionActions from "@/components/SubscriptionActions";
 import { accessForRestaurant, isBillingEnforced, joursLabel, type AccessSnapshot } from "@/lib/access";
-import { getSession } from "@/lib/auth";
+import { getOwnerSession } from "@/lib/auth";
 import {
   applyPlatformCheckoutReturn,
   isBillingConfigured,
@@ -94,7 +94,7 @@ export default async function SubscriptionPage({
 }: {
   searchParams: Promise<{ abonnement?: string; session_id?: string }>;
 }) {
-  const session = await getSession();
+  const session = await getOwnerSession();
   if (!session) return null;
 
   const { abonnement, session_id: sessionId } = await searchParams;

@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomInt } from "node:crypto";
 import { cookies } from "next/headers";
 import { ensureSchema, createId, sql } from "./db";
 import { hashPassword, verifyPassword } from "./password";
@@ -52,7 +52,16 @@ export async function getSession(): Promise<SessionPayload | null> {
     return null;
   }
   // La signature prouve que la session a été ouverte par nous ; la base dit si
-  // elle vaut encore (mot de passe inchangé, compte toujours là).
+  // elle vaut encore (mot de passe ou code équipe inchangé, compte toujours là).
+  if (session.role === "team") {
+    const [restaurant] = await sql<{ team_code_hash: string | null }[]>`
+      SELECT team_code_hash FROM restaurants WHERE id = ${session.restaurantId}
+    `;
+    if (!restaurant?.team_code_hash || passwordFingerprint(restaurant.team_code_hash) !== session.pwd) {
+      return null;
+    }
+    return session;
+  }
   const [owner] = await sql<{ password_hash: string }[]>`
     SELECT password_hash FROM restaurant_owners
     WHERE id = ${session.ownerId} AND restaurant_id = ${session.restaurantId}
@@ -63,18 +72,35 @@ export async function getSession(): Promise<SessionPayload | null> {
   return session;
 }
 
+/** Session du restaurateur lui-même, null pour une session équipe. */
+export async function getOwnerSession(): Promise<SessionPayload | null> {
+  const session = await getSession();
+  return session?.role === "owner" ? session : null;
+}
+
 /**
  * À utiliser en tête de chaque route API d'administration : l'identité du
  * restaurant vient toujours de la session signée, jamais d'un paramètre
  * fourni par le client, pour qu'un restaurant ne puisse jamais agir sur les
  * données d'un autre.
+ *
+ * Réservé au restaurateur par défaut : une route ne s'ouvre à l'équipe que
+ * si elle le demande avec `allowTeam`.
  */
-export async function requireSession(): Promise<
-  { session: SessionPayload } | { response: Response }
-> {
+export async function requireSession(
+  options: { allowTeam?: boolean } = {},
+): Promise<{ session: SessionPayload } | { response: Response }> {
   const session = await getSession();
   if (!session) {
     return { response: Response.json({ error: "Non authentifié." }, { status: 401 }) };
+  }
+  if (session.role === "team" && !options.allowTeam) {
+    return {
+      response: Response.json(
+        { error: "Réservé au responsable du restaurant." },
+        { status: 403 },
+      ),
+    };
   }
   return { session };
 }
@@ -141,6 +167,7 @@ export async function signup(
     restaurantId,
     ownerId,
     slug,
+    role: "owner",
     pwd: passwordFingerprint(passwordHash),
   };
   return {
@@ -192,6 +219,7 @@ export async function login(
       restaurantId: owner.restaurant_id,
       ownerId: owner.id,
       slug: owner.slug,
+      role: "owner",
       pwd: passwordFingerprint(owner.password_hash),
     },
   };
@@ -267,4 +295,85 @@ export async function resetPassword(
   });
 
   return { ok: true };
+}
+
+// ---- Accès équipe ----
+
+// Sans 0/O ni 1/I/L : le code se lit et se dicte sans ambiguïté.
+const TEAM_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const TEAM_CODE_LENGTH = 8;
+
+/** Majuscules, sans espaces ni tirets : « k7p4-9xq2 » vaut « K7P49XQ2 ». */
+export function normalizeTeamCode(code: string): string {
+  return code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+/** « K7P4-9XQ2 » */
+export function formatTeamCode(code: string): string {
+  return `${code.slice(0, 4)}-${code.slice(4)}`;
+}
+
+/**
+ * Crée (ou remplace) le code équipe du restaurant et le renvoie en clair,
+ * une seule fois : seule son empreinte est gardée. Le remplacer déconnecte
+ * les appareils de l'équipe.
+ */
+export async function createTeamCode(restaurantId: string): Promise<string> {
+  await ensureSchema();
+  const code = Array.from(
+    { length: TEAM_CODE_LENGTH },
+    () => TEAM_CODE_ALPHABET[randomInt(TEAM_CODE_ALPHABET.length)],
+  ).join("");
+  const hash = await hashPassword(code);
+  await sql`
+    UPDATE restaurants SET team_code_hash = ${hash}, team_code_created_at = now()
+    WHERE id = ${restaurantId}
+  `;
+  return code;
+}
+
+/** Supprime l'accès équipe : les appareils connectés avec l'ancien code sont déconnectés. */
+export async function removeTeamCode(restaurantId: string): Promise<void> {
+  await ensureSchema();
+  await sql`
+    UPDATE restaurants SET team_code_hash = NULL, team_code_created_at = NULL
+    WHERE id = ${restaurantId}
+  `;
+}
+
+export async function getTeamAccess(restaurantId: string): Promise<{ createdAt: string } | null> {
+  await ensureSchema();
+  const [row] = await sql<{ team_code_created_at: Date | null; team_code_hash: string | null }[]>`
+    SELECT team_code_hash, team_code_created_at FROM restaurants WHERE id = ${restaurantId}
+  `;
+  return row?.team_code_hash && row.team_code_created_at
+    ? { createdAt: row.team_code_created_at.toISOString() }
+    : null;
+}
+
+export async function teamLogin(
+  slug: string,
+  code: string,
+): Promise<{ session: SessionPayload } | { error: string }> {
+  await ensureSchema();
+  const [restaurant] = await sql<{ id: string; slug: string; team_code_hash: string | null }[]>`
+    SELECT id, slug, team_code_hash FROM restaurants WHERE slug = ${slug.trim().toLowerCase()}
+  `;
+  const normalized = normalizeTeamCode(code);
+  if (
+    !restaurant?.team_code_hash ||
+    normalized.length !== TEAM_CODE_LENGTH ||
+    !(await verifyPassword(normalized, restaurant.team_code_hash))
+  ) {
+    return { error: "Code équipe incorrect." };
+  }
+  return {
+    session: {
+      restaurantId: restaurant.id,
+      ownerId: "",
+      slug: restaurant.slug,
+      role: "team",
+      pwd: passwordFingerprint(restaurant.team_code_hash),
+    },
+  };
 }

@@ -22,8 +22,10 @@ export default async function AdminLayout({
   if (!session) {
     redirect(`/login?next=${encodeURIComponent(`/r/${slug}/admin`)}`);
   }
+  const team = session.role === "team";
   const restaurant = await getRestaurantById(session.restaurantId);
-  const access = restaurant ? accessForRestaurant(restaurant) : null;
+  // L'équipe ne gère pas l'abonnement : pas de bandeau d'essai pour elle.
+  const access = restaurant && !team ? accessForRestaurant(restaurant) : null;
   const banner =
     access && access.phase === "trial"
       ? { phase: "trial" as const, daysLeft: access.trialDaysLeft }
@@ -31,14 +33,16 @@ export default async function AdminLayout({
         ? { phase: "past_due" as const, daysLeft: access.graceDaysLeft }
         : null;
   const base = `/r/${slug}/admin`;
-  const LINKS = [
-    { href: base, label: "Tableau de bord" },
-    { href: `${base}/cuisine`, label: "Cuisine" },
-    { href: `${base}/menu`, label: "Menu" },
-    { href: `${base}/tables`, label: "QR codes" },
-    { href: `${base}/paiements`, label: "Paiements" },
-    { href: `${base}/abonnement`, label: "Abonnement" },
-  ];
+  const LINKS = team
+    ? [{ href: `${base}/cuisine`, label: "Cuisine" }]
+    : [
+        { href: base, label: "Tableau de bord" },
+        { href: `${base}/cuisine`, label: "Cuisine" },
+        { href: `${base}/menu`, label: "Menu" },
+        { href: `${base}/tables`, label: "QR codes" },
+        { href: `${base}/paiements`, label: "Paiements" },
+        { href: `${base}/abonnement`, label: "Abonnement" },
+      ];
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
@@ -49,7 +53,7 @@ export default async function AdminLayout({
             <span className="flex items-baseline gap-2">
               <span className="text-base font-extrabold tracking-tight">{BRAND_NAME}</span>
               <span className="text-xs font-bold uppercase tracking-[0.18em] text-brand">
-                Espace restaurant
+                {team ? "Accès équipe" : "Espace restaurant"}
               </span>
             </span>
           </span>
@@ -60,7 +64,7 @@ export default async function AdminLayout({
             >
               Voir le site
             </Link>
-            <LogoutButton />
+            <LogoutButton redirectTo={team ? `/r/${slug}/equipe` : "/login"} />
           </div>
         </div>
         <nav className="no-scrollbar mx-auto flex w-full max-w-5xl gap-2 overflow-x-auto px-5 pb-4">

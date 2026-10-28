@@ -6,7 +6,7 @@ import { ORDER_STATUSES, type OrderStatus } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireSession();
+  const auth = await requireSession({ allowTeam: true });
   if ("response" in auth) return auth.response;
 
   const { id } = await params;
@@ -25,6 +25,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // Annuler une commande payée rembourse le client. Si Stripe refuse, la
   // commande reste active : on n'annule jamais sans avoir rendu l'argent.
   if (status === "annulee" && existing.paymentStatus === "paye") {
+    // Rembourser, c'est rendre l'argent du restaurant : décision du responsable.
+    if (auth.session.role !== "owner") {
+      return Response.json(
+        { error: "Seul le responsable du restaurant peut annuler une commande payée." },
+        { status: 403 },
+      );
+    }
     const restaurant = await getRestaurantById(restaurantId);
     try {
       const refunded = restaurant ? await refundOrder(restaurant, existing) : null;

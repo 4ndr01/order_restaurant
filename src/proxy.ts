@@ -41,6 +41,11 @@ export async function proxy(request: NextRequest) {
     if (session.slug !== slug) {
       return NextResponse.redirect(new URL(`/r/${session.slug}/admin`, request.url));
     }
+    // L'équipe n'a que l'écran cuisine ; le reste de l'espace est au responsable.
+    const kitchen = `/r/${slug}/admin/cuisine`;
+    if (session.role === "team" && pathname !== kitchen && !pathname.startsWith(`${kitchen}/`)) {
+      return NextResponse.redirect(new URL(kitchen, request.url));
+    }
     return NextResponse.next();
   }
 
