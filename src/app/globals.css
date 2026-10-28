@@ -11,6 +11,9 @@
   --brand-strong: #153a28;
   --brand-soft: #e8eddc;
   --accent: #c8a15a;
+  /* Doré assez foncé pour du texte sur fond crème (contraste ≥ 4,5:1). */
+  --accent-strong: #7f5f22;
+  --accent-soft: #f3e8cf;
   --shadow-color: 150deg 30% 22%;
 }
 
@@ -24,6 +27,8 @@
   --color-brand-strong: var(--brand-strong);
   --color-brand-soft: var(--brand-soft);
   --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
   --font-sans: var(--font-jakarta);
 }
 

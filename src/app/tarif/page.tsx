@@ -26,8 +26,12 @@ export const metadata: Metadata = publicPageMetadata({
 
 const INCLUDED = [
   "Menu en ligne : catégories, descriptions, photos, allergènes et plats en rupture",
+  "Options et suppléments : cuisson, sauces, suppléments payants",
   "QR codes à imprimer, un par table, sans quota de tables ni de plats",
-  "Écran cuisine actualisé toutes les 5 secondes, et page de suivi pour le client",
+  "Écran cuisine avec alerte sonore, et page de suivi pour le client",
+  "Tickets cuisine imprimés, à la main ou automatiquement (facultatif)",
+  "Horaires de commande et bouton pour fermer les commandes",
+  "Accès équipe limité à l'écran cuisine, avec un code",
   "Export des commandes en CSV, sur un an au plus, pour Excel",
   "Paiement en ligne Stripe, facultatif, sans commission ajoutée au ticket",
   "Carte, factures et résiliation dans le portail client Stripe",

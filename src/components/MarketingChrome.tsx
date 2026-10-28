@@ -69,7 +69,10 @@ export function MarketingHeader() {
           {BRAND_NAME}
         </Link>
         <SectionNav className="hidden items-center gap-1 lg:flex" />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Link href="/tarif" className={`${navLink} lg:hidden`}>
+            Tarif
+          </Link>
           <Link href="/login" className={navLink}>
             Se connecter
           </Link>
@@ -78,7 +81,6 @@ export function MarketingHeader() {
           </Link>
         </div>
       </div>
-      <SectionNav className="no-scrollbar mx-auto flex w-full max-w-6xl gap-1 overflow-x-auto px-5 pb-3 lg:hidden" />
     </header>
   );
 }

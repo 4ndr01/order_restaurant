@@ -1,4 +1,6 @@
 import Link from "next/link";
+import FeatureIcon, { type FeatureIconName } from "@/components/FeatureIcon";
+import { KitchenMockup, PhoneMockup } from "@/components/HomeMockups";
 import {
   GUIDE_PAGES,
   MarketingShell,
@@ -8,53 +10,80 @@ import {
   TRIAL_DAYS,
   primaryCta,
 } from "@/components/MarketingChrome";
-import { BRAND_NAME } from "@/lib/brand";
-import { formatPrice } from "@/lib/format";
 import { ANNOUNCED_PLAN } from "@/lib/plans";
-import { STATUS_LABELS } from "@/lib/types";
 
 const PLAN_NAME = `Abonnement ${ANNOUNCED_PLAN.label}`;
 
+// Sans « display » : chaque bouton choisit le sien (le secondaire est masqué sur téléphone).
 const secondaryCta =
-  "inline-flex min-h-12 items-center justify-center rounded-full bg-surface px-6 text-center text-base font-semibold text-foreground transition hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+  "min-h-12 items-center justify-center rounded-full bg-surface px-6 text-center text-base font-semibold text-foreground transition hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+
+const sectionTitle = "text-3xl font-extrabold tracking-tight text-balance sm:text-4xl";
+
+const REASSURANCE = ["Sans carte bancaire", "Sans application à installer", "Sans engagement"] as const;
 
 const STEPS = [
   {
     title: "Créez votre espace",
-    text: "Nom du restaurant, adresse du menu, email et mot de passe. Un menu d'exemple et six tables sont créés tout de suite. Vous les modifiez, et vous pouvez en ajouter.",
+    text: "Un menu d'exemple et six tables sont prêts dès l'inscription. Vous remplacez les plats et ajustez les prix.",
   },
   {
     title: "Posez un QR code par table",
-    text: "Chaque table a son code, à imprimer et à poser. Le client ouvre la carte dans le navigateur de son téléphone, sans application à installer.",
+    text: "Imprimez les codes depuis votre espace. Le client ouvre la carte dans son navigateur, sans rien installer.",
   },
   {
-    title: "Cuisine et client suivent",
-    text: "La commande apparaît sur l'écran cuisine, qui se met à jour tout seul. Le client voit le statut : reçue, en préparation, prête, puis servie.",
+    title: "Servez",
+    text: "La commande arrive en cuisine, avec un son et, si vous voulez, un ticket. Le client suit sa préparation en direct.",
   },
 ] as const;
 
-const BENEFITS = [
+const FEATURES: { icon: FeatureIconName; title: string; text: string }[] = [
+  { icon: "menu", title: "Carte en ligne", text: "Catégories, photos, descriptions, ruptures en un clic." },
+  { icon: "options", title: "Options et suppléments", text: "Cuisson, sauces, suppléments payants : le prix suit." },
+  { icon: "allergens", title: "Allergènes", text: "Les 14 allergènes réglementaires affichés au client." },
+  { icon: "card", title: "Paiement en ligne", text: "Carte, Apple Pay, Google Pay, sur votre compte Stripe." },
+  { icon: "kitchen", title: "Écran cuisine", text: "Commandes en direct, alerte sonore, suivi pour le client." },
+  { icon: "ticket", title: "Tickets imprimés", text: "Un ticket par commande, à la main ou automatiquement." },
+  { icon: "clock", title: "Horaires et fermeture", text: "Commandes coupées en un geste ou selon vos créneaux." },
+  { icon: "team", title: "Accès équipe", text: "Un code pour la cuisine, sans votre mot de passe." },
+];
+
+const KITCHEN_POINTS = [
+  "Chaque commande arrive avec ses options et les précisions du client.",
+  "Un carillon prévient la cuisine ; «\u00a0Reçue\u00a0», «\u00a0En préparation\u00a0», «\u00a0Prête\u00a0» en un toucher.",
+  "Ticket 80 mm facultatif : un clic, ou automatique sur la tablette reliée à l'imprimante.",
+  "Votre équipe se connecte avec un code : elle ne voit ni les prix ni les paiements.",
+] as const;
+
+const MONEY = [
   {
-    title: "La commande depuis la table",
-    text: "Carte en ligne, allergènes, quantités et une note pour la cuisine. Le client suit sa commande. Sans paiement en ligne, il commande quand même et règle en salle.",
+    figure: "100 %",
+    title: "Sur votre compte",
+    text: "Chaque paiement est encaissé sur votre compte Stripe, puis versé sur votre compte bancaire. Nous ne touchons jamais aux sommes.",
   },
   {
-    title: "L'argent sur votre compte Stripe",
-    text: `Chaque restaurant a son compte Stripe connecté. Le paiement est encaissé sur ce compte, puis versé sur votre compte bancaire par Stripe. ${BRAND_NAME} ne détient pas les sommes. Annuler une commande payée rembourse le client.`,
+    figure: "0 %",
+    title: "De commission",
+    text: "Aucun frais ajouté au ticket ni prélevé sur vos ventes. Vous payez l'abonnement, c'est tout.",
   },
   {
-    title: "Aucune commission par commande",
-    text: "Aucun frais de plateforme n'est ajouté au ticket. Vous payez l'abonnement, et les frais de traitement de Stripe sur les paiements en ligne (environ 1,5 % + 0,25 € pour une carte européenne, selon sa grille).",
+    figure: "≈ 1,5 %",
+    title: "Frais bancaires Stripe",
+    text: "Comme pour tout terminal de paiement : environ 1,5 % + 0,25 € par carte européenne, prélevés par Stripe.",
   },
 ] as const;
 
 const INCLUDED = [
-  "Menu, photos, descriptions et allergènes",
-  "QR codes à imprimer, un par table",
-  "Écran cuisine et suivi pour le client",
-  "Export des commandes au format CSV",
-  "Paiement en ligne Stripe, sans commission de notre part",
-  "Carte, factures et résiliation dans le portail Stripe",
+  "Carte, photos, allergènes",
+  "Options et suppléments",
+  "QR codes à imprimer",
+  "Paiement en ligne sans commission",
+  "Écran cuisine et alerte sonore",
+  "Tickets cuisine imprimés",
+  "Horaires et fermeture des commandes",
+  "Accès équipe",
+  "Suivi de commande pour le client",
+  "Export des commandes (Excel)",
 ] as const;
 
 const QUESTIONS = [
@@ -76,94 +105,74 @@ const QUESTIONS = [
   },
 ] as const;
 
-const PREVIEW = [
-  { name: "Burrata crémeuse", price: 9.5 },
-  { name: "Entrecôte grillée", price: 22 },
-  { name: "Fondant au chocolat", price: 8 },
-] as const;
-
 export default function HomeLanding() {
   return (
     <MarketingShell>
       <main id="contenu">
-        <section className="mx-auto grid w-full max-w-6xl items-center gap-12 px-5 py-14 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:py-20">
-          <div>
-            <p className="inline-flex rounded-full bg-brand-soft px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-brand">
-              Restaurants en France
-            </p>
-            <h1 className="mt-5 text-4xl font-extrabold tracking-tight text-balance sm:text-5xl lg:text-6xl">
-              Vos clients commandent depuis leur table. Le paiement arrive chez vous.
-            </h1>
-            <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted">
-              Ils scannent le QR code, composent la commande sur leur téléphone et suivent la
-              préparation. La cuisine voit arriver chaque commande. Avec le paiement en ligne,
-              l&apos;argent est encaissé sur votre compte Stripe, sans commission de notre part.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/signup" className={`${primaryCta} inline-flex w-full sm:w-auto`}>
-                {TRIAL_CTA}
-              </Link>
-              <Link href="/login" className={`${secondaryCta} w-full sm:w-auto`}>
-                Se connecter
-              </Link>
+        <section className="relative overflow-hidden">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-40 -top-40 h-[34rem] w-[34rem] rounded-full bg-accent-soft/70 blur-3xl"
+          />
+          <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-5 py-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:py-20">
+            <div>
+              <p className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-accent-strong">
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent" />
+                0 % de commission · {PRICE}
+              </p>
+              <h1 className="mt-5 text-4xl font-extrabold tracking-tight text-balance sm:text-5xl lg:text-6xl">
+                Vos clients commandent depuis leur table
+                {/* Le point de cette police s'écarte du mot : on le rapproche. */}
+                <span className="-ml-[0.08em]">.</span>{" "}
+                <span className="text-brand">Le paiement arrive chez vous</span>
+                <span className="-ml-[0.08em] text-brand">.</span>
+              </h1>
+              <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted">
+                Un QR code par table : vos clients commandent et paient sur leur téléphone, la
+                cuisine reçoit tout en direct. L&apos;argent arrive sur votre compte, sans
+                commission.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link href="/signup" className={`${primaryCta} inline-flex w-full sm:w-auto`}>
+                  {TRIAL_CTA}
+                </Link>
+                {/* Sur téléphone, « Se connecter » est déjà dans l'en-tête. */}
+                <Link href="/login" className={`${secondaryCta} hidden sm:inline-flex`}>
+                  Se connecter
+                </Link>
+              </div>
+              <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-foreground/80">
+                {REASSURANCE.map((item) => (
+                  <li key={item} className="flex items-center gap-1.5">
+                    <span aria-hidden="true" className="font-bold text-brand">✓</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
             </div>
-            <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
-              L&apos;inscription est gratuite, sans carte bancaire. Les {TRIAL_DAYS} jours
-              d&apos;essai commencent à la création du restaurant, puis l&apos;abonnement{" "}
-              {ANNOUNCED_PLAN.label} est à {PRICE}.
-            </p>
-          </div>
 
-          <figure className="card-float mx-auto w-full max-w-sm rounded-[2rem] bg-surface p-6">
-            <figcaption className="text-xs font-bold uppercase tracking-[0.14em] text-brand">
-              Aperçu
-            </figcaption>
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <p className="text-lg font-extrabold tracking-tight">Table 4</p>
-              <span className="rounded-full bg-brand-soft px-3 py-1 text-xs font-bold text-brand">
-                {STATUS_LABELS.en_preparation}
-              </span>
-            </div>
-            <ul className="mt-5 divide-y divide-line">
-              {PREVIEW.map((item) => (
-                <li key={item.name} className="flex items-baseline justify-between gap-4 py-3">
-                  <span className="font-semibold">{item.name}</span>
-                  <span className="shrink-0 text-sm text-muted">{formatPrice(item.price)}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-4 text-sm leading-relaxed text-muted">
-              Menu d&apos;exemple créé à l&apos;inscription. Les plats et les prix restent les
-              vôtres.
-            </p>
-          </figure>
+            <PhoneMockup />
+          </div>
         </section>
 
-        <section id="fonctionnement" aria-labelledby="fonctionnement-titre" className="scroll-mt-28">
+        <section id="fonctionnement" aria-labelledby="fonctionnement-titre" className="scroll-mt-28 bg-surface">
           <div className="mx-auto w-full max-w-6xl px-5 py-16">
-            <h2 id="fonctionnement-titre" className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Comment ça marche
+            <h2 id="fonctionnement-titre" className={sectionTitle}>
+              Prêt pour le prochain service
             </h2>
             <p className="mt-3 max-w-2xl text-lg text-muted">
-              Trois étapes, de l&apos;inscription au service. Le menu client et l&apos;écran cuisine
-              sont inclus.
-            </p>
-            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
-              <Link href="/commande-a-table-qr-code" className="font-semibold text-brand hover:underline">
-                Le parcours de commande à table
-              </Link>
-              {" · "}
+              Trois étapes, de l&apos;inscription à la première commande.{" "}
               <Link href="/guide/qr-code-tables" className="font-semibold text-brand hover:underline">
                 Comment poser les QR codes
               </Link>
             </p>
             <ol className="mt-10 grid gap-4 md:grid-cols-3">
               {STEPS.map((step, index) => (
-                <li key={step.title} className="card-float-sm rounded-3xl bg-surface p-6">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
+                <li key={step.title} className="relative rounded-3xl bg-background p-6">
+                  <span className="text-5xl font-extrabold leading-none text-accent">
                     {index + 1}
                   </span>
-                  <h3 className="mt-4 text-lg font-bold">{step.title}</h3>
+                  <h3 className="mt-3 text-lg font-bold">{step.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted">{step.text}</p>
                 </li>
               ))}
@@ -171,27 +180,70 @@ export default function HomeLanding() {
           </div>
         </section>
 
-        <section id="avantages" aria-labelledby="avantages-titre" className="scroll-mt-28 bg-surface">
+        <section id="avantages" aria-labelledby="avantages-titre" className="scroll-mt-28">
           <div className="mx-auto w-full max-w-6xl px-5 py-16">
-            <h2 id="avantages-titre" className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Ce qui est inclus
+            <h2 id="avantages-titre" className={sectionTitle}>
+              Tout ce qu&apos;il faut pour le service
             </h2>
             <p className="mt-3 max-w-2xl text-lg text-muted">
-              La commande à table, le paiement direct et un abonnement sans commission sur le
-              ticket.{" "}
-              <Link href="/paiement-a-table" className="font-semibold text-brand hover:underline">
+              Tout est inclus dans l&apos;abonnement, sans option payante.{" "}
+              <Link href="/commande-a-table-qr-code" className="font-semibold text-brand hover:underline">
+                Le parcours de commande à table
+              </Link>
+            </p>
+            <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {FEATURES.map((feature) => (
+                <li key={feature.title} className="card-float-sm rounded-3xl bg-surface p-5">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-soft text-brand">
+                    <FeatureIcon name={feature.icon} />
+                  </span>
+                  <h3 className="mt-4 font-bold">{feature.title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">{feature.text}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section aria-labelledby="cuisine-titre" className="overflow-hidden bg-surface">
+          <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-5 py-16 lg:grid-cols-2 lg:py-20">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent-strong">En cuisine</p>
+              <h2 id="cuisine-titre" className={`mt-2 ${sectionTitle}`}>
+                La commande arrive, la cuisine n&apos;a plus qu&apos;à envoyer
+              </h2>
+              <ul className="mt-6 space-y-3">
+                {KITCHEN_POINTS.map((point) => (
+                  <li key={point} className="flex items-start gap-3 leading-relaxed">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
+                      ✓
+                    </span>
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <KitchenMockup />
+          </div>
+        </section>
+
+        <section aria-labelledby="argent-titre" className="bg-brand text-white">
+          <div className="mx-auto w-full max-w-6xl px-5 py-16 lg:py-20">
+            <h2 id="argent-titre" className={sectionTitle}>
+              Votre argent reste le vôtre
+            </h2>
+            <p className="mt-3 max-w-2xl text-lg text-white/85">
+              Chaque restaurant a son propre compte Stripe.{" "}
+              <Link href="/paiement-a-table" className="font-semibold text-white underline underline-offset-4">
                 Comment le paiement arrive sur votre compte
               </Link>
-              .
             </p>
-            <ul className="mt-10 grid gap-4 lg:grid-cols-3">
-              {BENEFITS.map((benefit) => (
-                <li key={benefit.title} className="rounded-3xl bg-background p-6">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
-                    ✓
-                  </span>
-                  <h3 className="mt-4 text-lg font-bold">{benefit.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted">{benefit.text}</p>
+            <ul className="mt-10 grid gap-4 md:grid-cols-3">
+              {MONEY.map((item) => (
+                <li key={item.title} className="rounded-3xl bg-white/10 p-6">
+                  <p className="text-4xl font-extrabold tracking-tight text-accent">{item.figure}</p>
+                  <h3 className="mt-2 text-lg font-bold">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-white/80">{item.text}</p>
                 </li>
               ))}
             </ul>
@@ -200,25 +252,27 @@ export default function HomeLanding() {
 
         <section id="tarif" aria-labelledby="tarif-titre" className="scroll-mt-28">
           <div className="mx-auto w-full max-w-6xl px-5 py-16">
-            <h2 id="tarif-titre" className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Un seul tarif
+            <h2 id="tarif-titre" className={`${sectionTitle} text-center`}>
+              Un seul tarif, tout compris
             </h2>
-            <p className="mt-3 max-w-2xl text-lg text-muted">
-              {TRIAL_DAYS} jours d&apos;essai dès l&apos;inscription, sans carte bancaire.
-              Ensuite, l&apos;abonnement {ANNOUNCED_PLAN.label} à {PRICE}, seulement si vous le
-              prenez.{" "}
+            <p className="mx-auto mt-3 max-w-2xl text-center text-lg text-muted">
+              {TRIAL_DAYS} jours d&apos;essai dès l&apos;inscription, puis {PRICE} si vous
+              continuez.{" "}
               <Link href="/tarif" className="font-semibold text-brand hover:underline">
-                Voir la page tarif
+                Détails du tarif
               </Link>
-              .
             </p>
-            <div className="card-float mx-auto mt-10 max-w-xl rounded-[2rem] border-t-4 border-accent bg-surface p-7 sm:p-9">
-              <p className="text-sm font-bold uppercase tracking-[0.14em] text-brand">{PLAN_NAME}</p>
-              <p className="mt-3 text-5xl font-extrabold tracking-tight text-brand">{PRICE}</p>
-              <p className="mt-2 text-muted">
-                {TRIAL_DAYS} jours d&apos;essai dès l&apos;inscription, sans carte
-              </p>
-              <ul className="mt-8 space-y-3">
+            <div className="card-float mx-auto mt-10 max-w-2xl rounded-[2rem] border-t-4 border-accent bg-surface p-7 sm:p-9">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <p className="text-sm font-bold uppercase tracking-[0.14em] text-brand">{PLAN_NAME}</p>
+                  <p className="mt-2 text-5xl font-extrabold tracking-tight text-brand">{PRICE}</p>
+                </div>
+                <p className="rounded-full bg-accent-soft px-3.5 py-1.5 text-sm font-bold text-accent-strong">
+                  0 % de commission
+                </p>
+              </div>
+              <ul className="mt-8 grid gap-x-6 gap-y-3 sm:grid-cols-2">
                 {INCLUDED.map((item) => (
                   <li key={item} className="flex items-start gap-3 text-sm leading-relaxed">
                     <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
@@ -231,14 +285,9 @@ export default function HomeLanding() {
               <Link href="/signup" className={`${primaryCta} mt-8 inline-flex w-full`}>
                 {TRIAL_CTA}
               </Link>
-              <p className="mt-4 text-sm leading-relaxed text-muted">
-                Aucune carte n&apos;est demandée à l&apos;inscription. L&apos;essai de{" "}
-                {TRIAL_DAYS} jours commence à ce moment-là, avec le service complet. Pour
-                continuer ensuite, activez l&apos;abonnement {ANNOUNCED_PLAN.label} : si vous le
-                faites pendant l&apos;essai, les jours restants sont conservés et le premier
-                prélèvement a lieu à la fin de l&apos;essai. Une fois l&apos;essai terminé, le
-                prélèvement a lieu le jour de la souscription. Vous gérez ou résiliez
-                l&apos;abonnement à tout moment dans le portail client Stripe.
+              <p className="mt-4 text-center text-sm leading-relaxed text-muted">
+                Aucune carte à l&apos;inscription. Abonnement sans engagement, résiliable à tout
+                moment depuis votre espace.
               </p>
             </div>
           </div>
@@ -246,7 +295,7 @@ export default function HomeLanding() {
 
         <section id="questions" aria-labelledby="questions-titre" className="scroll-mt-28 bg-surface">
           <div className="mx-auto w-full max-w-3xl px-5 py-16">
-            <h2 id="questions-titre" className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+            <h2 id="questions-titre" className={sectionTitle}>
               Questions fréquentes
             </h2>
             <div className="mt-8 divide-y divide-line">
@@ -270,18 +319,21 @@ export default function HomeLanding() {
 
         <section aria-labelledby="guides-titre" className="scroll-mt-28">
           <div className="mx-auto w-full max-w-6xl px-5 py-16">
-            <h2 id="guides-titre" className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Pour préparer la salle
+            <h2 id="guides-titre" className={sectionTitle}>
+              Guides pour bien démarrer
             </h2>
             <ul className="mt-8 grid gap-4 sm:grid-cols-2">
               {GUIDE_PAGES.map((page) => (
                 <li key={page.href}>
                   <Link
                     href={page.href}
-                    className="card-float-sm block h-full rounded-3xl bg-surface p-6 transition hover:-translate-y-0.5"
+                    className="card-float-sm flex h-full items-start justify-between gap-4 rounded-3xl bg-surface p-6 transition hover:-translate-y-0.5"
                   >
-                    <p className="text-lg font-bold">{page.label}</p>
-                    <p className="mt-2 text-sm leading-relaxed text-muted">{page.text}</p>
+                    <span>
+                      <span className="block text-lg font-bold">{page.label}</span>
+                      <span className="mt-2 block text-sm leading-relaxed text-muted">{page.text}</span>
+                    </span>
+                    <span aria-hidden="true" className="text-xl text-brand">→</span>
                   </Link>
                 </li>
               ))}
