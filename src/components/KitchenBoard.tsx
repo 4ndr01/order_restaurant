@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import KitchenTickets from "@/components/KitchenTickets";
 import { api } from "@/lib/client";
 import { formatPrice, formatTime, minutesSince } from "@/lib/format";
 import { optionsLabel } from "@/lib/menu-options";
@@ -13,6 +21,38 @@ const NEXT_STATUS: Partial<Record<OrderStatus, { status: OrderStatus; label: str
 };
 
 const FRESH_HIGHLIGHT_MS = 2400;
+
+// Choix propre à chaque appareil : seule la tablette reliée à l'imprimante
+// l'active. Désactivé par défaut.
+const AUTO_PRINT_KEY = "wgk-impression-auto";
+const AUTO_PRINT_EVENT = "wgk-impression-auto";
+
+function readAutoPrint(): boolean {
+  try {
+    return window.localStorage.getItem(AUTO_PRINT_KEY) === "oui";
+  } catch {
+    // Stockage indisponible (navigation privée stricte) : reste désactivé.
+    return false;
+  }
+}
+
+function subscribeAutoPrint(onChange: () => void): () => void {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(AUTO_PRINT_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(AUTO_PRINT_EVENT, onChange);
+  };
+}
+
+function saveAutoPrint(enabled: boolean): void {
+  try {
+    window.localStorage.setItem(AUTO_PRINT_KEY, enabled ? "oui" : "non");
+  } catch {
+    // Sans stockage, le choix ne survit pas au rechargement.
+  }
+  window.dispatchEvent(new Event(AUTO_PRINT_EVENT));
+}
 
 const OPEN_STATUSES: OrderStatus[] = ["recue", "en_preparation", "prete"];
 
@@ -65,6 +105,37 @@ export default function KitchenBoard({
   // d'un toucher sur « Activer le son », en début de service.
   const audio = useRef<AudioContext | null>(null);
   const [soundOn, setSoundOn] = useState(false);
+  // Impression des tickets, facultative. Un ticket en cours d'impression n'est
+  // jamais relancé : les commandes arrivées entre-temps attendent le suivant.
+  const [printing, setPrinting] = useState<Order[]>([]);
+  const printingRef = useRef<Order[]>([]);
+  const pendingPrint = useRef<Order[]>([]);
+  const autoPrint = useSyncExternalStore(subscribeAutoPrint, readAutoPrint, () => false);
+  const autoPrintRef = useRef(autoPrint);
+  useEffect(() => {
+    autoPrintRef.current = autoPrint;
+  }, [autoPrint]);
+
+  const requestPrint = useCallback((list: Order[]) => {
+    if (list.length === 0) return;
+    if (printingRef.current.length > 0) {
+      pendingPrint.current = [...pendingPrint.current, ...list];
+      return;
+    }
+    printingRef.current = list;
+    setPrinting(list);
+  }, []);
+
+  const printDone = useCallback(() => {
+    const next = pendingPrint.current;
+    pendingPrint.current = [];
+    printingRef.current = next;
+    setPrinting(next);
+  }, []);
+
+  function toggleAutoPrint() {
+    saveAutoPrint(!autoPrint);
+  }
 
   useEffect(() => {
     const context = audio;
@@ -96,6 +167,14 @@ export default function KitchenBoard({
         if (audio.current) {
           playChime(audio.current);
         }
+        if (autoPrintRef.current) {
+          // Plus ancienne d'abord, dans l'ordre où la cuisine les traitera.
+          requestPrint(
+            data.orders
+              .filter((order) => arrived.includes(order.id))
+              .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+          );
+        }
         arrived.forEach((id) => knownIds.current.add(id));
         setFreshIds((current) => new Set([...current, ...arrived]));
         setTimeout(() => {
@@ -111,7 +190,7 @@ export default function KitchenBoard({
     } catch (cause) {
       setError((cause as Error).message);
     }
-  }, []);
+  }, [requestPrint]);
 
   useEffect(() => {
     const timer = setInterval(refresh, 5000);
@@ -163,6 +242,24 @@ export default function KitchenBoard({
           >
             {soundOn ? "🔔 Son activé · toucher pour couper" : "🔕 Activer le son des nouvelles commandes"}
           </button>
+          <button
+            type="button"
+            onClick={toggleAutoPrint}
+            aria-pressed={autoPrint}
+            className={`mt-2 block min-h-11 rounded-full px-4 text-sm font-semibold ${
+              autoPrint ? "bg-brand-soft text-brand" : "bg-surface text-foreground/80"
+            }`}
+          >
+            {autoPrint
+              ? "🖨️ Tickets automatiques · toucher pour couper"
+              : "🖨️ Imprimer les tickets automatiquement"}
+          </button>
+          {autoPrint && (
+            <p className="mt-1 max-w-md text-xs text-muted">
+              Sur cet appareil uniquement. Le navigateur peut demander de confirmer chaque ticket ;
+              sur ordinateur, Chrome sait imprimer sans confirmation (option « kiosk-printing »).
+            </p>
+          )}
         </div>
         <div className="flex gap-2 rounded-full bg-surface p-1">
           <button
@@ -260,7 +357,14 @@ export default function KitchenBoard({
                       </span>
                     )}
                   </span>
-                  <div className="flex flex-1 justify-end gap-2">
+                  <div className="flex flex-1 flex-wrap justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => requestPrint([order])}
+                      className="min-h-11 rounded-full px-4 text-sm font-medium text-muted hover:bg-brand-soft hover:text-brand"
+                    >
+                      Imprimer
+                    </button>
                     {OPEN_STATUSES.includes(order.status) &&
                       (canRefund || order.paymentStatus !== "paye") && (
                       <button
@@ -287,6 +391,7 @@ export default function KitchenBoard({
           })}
         </ul>
       )}
+      <KitchenTickets orders={printing} onDone={printDone} />
     </main>
   );
 }
