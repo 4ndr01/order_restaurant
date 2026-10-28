@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import BrandHeader from "@/components/BrandHeader";
 import TeamLoginForm from "@/components/TeamLoginForm";
@@ -16,31 +15,15 @@ export default async function TeamLoginPage({ params }: { params: Promise<{ slug
   if (!restaurant) {
     notFound();
   }
-  const session = await getSession();
-  const sameRestaurant = session?.restaurantId === restaurant.id;
   // L'équipe déjà connectée retourne directement en cuisine.
-  if (sameRestaurant && session.role === "team") {
+  const session = await getSession();
+  if (session?.restaurantId === restaurant.id && session.role === "team") {
     redirect(`/r/${restaurant.slug}/admin/cuisine`);
   }
   return (
     <>
       <BrandHeader />
-      <TeamLoginForm
-        slug={restaurant.slug}
-        restaurantName={restaurant.name}
-        ownerNotice={
-          sameRestaurant ? (
-            <p className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              Ce navigateur est connecté à votre espace responsable. Vous connecter ici avec le
-              code équipe remplacera cette connexion : utilisez plutôt la tablette de l&apos;équipe
-              ou une fenêtre de navigation privée.{" "}
-              <Link href={`/r/${restaurant.slug}/admin`} className="font-semibold underline">
-                Retour à mon espace
-              </Link>
-            </p>
-          ) : null
-        }
-      />
+      <TeamLoginForm slug={restaurant.slug} restaurantName={restaurant.name} />
     </>
   );
 }

@@ -58,11 +58,7 @@ export default async function AdminLayout({
             </span>
           </span>
           <div className="flex items-center gap-1">
-            {team ? (
-              // Un navigateur ne garde qu'une connexion : le responsable qui a
-              // testé le code équipe retrouve ainsi son propre espace.
-              <LogoutButton redirectTo="/login" label="Vous êtes le responsable ?" />
-            ) : (
+            {!team && (
               <Link
                 href={`/r/${slug}/menu`}
                 className="flex min-h-11 items-center rounded-full px-3 text-sm font-medium text-muted hover:bg-brand-soft hover:text-brand"
