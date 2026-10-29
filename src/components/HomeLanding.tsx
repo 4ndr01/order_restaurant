@@ -156,7 +156,7 @@ export default function HomeLanding() {
         </section>
 
         <section id="fonctionnement" aria-labelledby="fonctionnement-titre" className="scroll-mt-28 bg-surface">
-          <div className="mx-auto w-full max-w-6xl px-5 py-16">
+          <div className="reveal mx-auto w-full max-w-6xl px-5 py-16">
             <h2 id="fonctionnement-titre" className={sectionTitle}>
               La commande à table en trois étapes
             </h2>
@@ -181,7 +181,7 @@ export default function HomeLanding() {
         </section>
 
         <section id="avantages" aria-labelledby="avantages-titre" className="scroll-mt-28">
-          <div className="mx-auto w-full max-w-6xl px-5 py-16">
+          <div className="reveal mx-auto w-full max-w-6xl px-5 py-16">
             <h2 id="avantages-titre" className={sectionTitle}>
               Tout pour le service, du QR code à la cuisine
             </h2>
@@ -205,8 +205,10 @@ export default function HomeLanding() {
           </div>
         </section>
 
-        <section aria-labelledby="cuisine-titre" className="overflow-hidden bg-surface">
-          <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-5 py-16 lg:grid-cols-2 lg:py-20">
+        {/* overflow-clip et non hidden : hidden ferait de la section une zone de
+            défilement, et le ticket suivrait son défilement (nul) au lieu de la page. */}
+        <section aria-labelledby="cuisine-titre" className="overflow-clip bg-surface">
+          <div className="reveal mx-auto grid w-full max-w-6xl items-center gap-12 px-5 py-16 lg:grid-cols-2 lg:py-20">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent-strong">En cuisine</p>
               <h2 id="cuisine-titre" className={`mt-2 ${sectionTitle}`}>
@@ -228,7 +230,7 @@ export default function HomeLanding() {
         </section>
 
         <section aria-labelledby="argent-titre" className="bg-brand text-white">
-          <div className="mx-auto w-full max-w-6xl px-5 py-16 lg:py-20">
+          <div className="reveal mx-auto w-full max-w-6xl px-5 py-16 lg:py-20">
             <h2 id="argent-titre" className={sectionTitle}>
               Votre argent reste le vôtre
             </h2>
@@ -251,7 +253,7 @@ export default function HomeLanding() {
         </section>
 
         <section id="tarif" aria-labelledby="tarif-titre" className="scroll-mt-28">
-          <div className="mx-auto w-full max-w-6xl px-5 py-16">
+          <div className="reveal mx-auto w-full max-w-6xl px-5 py-16">
             <h2 id="tarif-titre" className={`${sectionTitle} text-center`}>
               Un seul tarif, tout compris
             </h2>

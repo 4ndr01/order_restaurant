@@ -8,15 +8,15 @@ import { formatPrice } from "@/lib/format";
  */
 
 const DISHES = [
-  { emoji: "🥗", tint: "bg-[#e8eddc]", name: "Burrata crémeuse", note: "Tomates anciennes, basilic", price: 9.5 },
-  { emoji: "🥩", tint: "bg-[#f3e3cf]", name: "Entrecôte grillée", note: "Frites maison, beurre d'herbes", price: 22 },
+  { emoji: "🥗", tint: "bg-[#e8eddc]", name: "Burrata crémeuse", note: "Tomates anciennes, basilic", price: 9.5, tapped: false },
+  { emoji: "🥩", tint: "bg-[#f3e3cf]", name: "Entrecôte grillée", note: "Frites maison, beurre d'herbes", price: 22, tapped: true },
 ] as const;
 
-function Choice({ label, extra, active, multiple = false }: {
+function ChoiceFace({ label, extra, active, multiple }: {
   label: string;
   extra?: number;
-  active?: boolean;
-  multiple?: boolean;
+  active: boolean;
+  multiple: boolean;
 }) {
   return (
     <div
@@ -39,7 +39,40 @@ function Choice({ label, extra, active, multiple = false }: {
   );
 }
 
-/** Téléphone du client : la carte, et la fenêtre de choix des options ouverte. */
+// Classes écrites en entier pour que Tailwind les trouve dans le code.
+const PICK_ANIMATION = {
+  first: "motion-loop animate-mock-pick-1",
+  second: "motion-loop animate-mock-pick-2",
+} as const;
+
+/**
+ * Un choix de la fenêtre des options. Avec `pick`, la version cochée se pose
+ * par-dessus et apparaît à son moment de la boucle ; sans animation, elle
+ * reste visible (état final).
+ */
+function Choice({ label, extra, pick, multiple = false }: {
+  label: string;
+  extra?: number;
+  pick?: keyof typeof PICK_ANIMATION;
+  multiple?: boolean;
+}) {
+  const face = <ChoiceFace label={label} extra={extra} active={false} multiple={multiple} />;
+  if (!pick) return face;
+  return (
+    <div className="relative">
+      {face}
+      <div className={`absolute inset-0 ${PICK_ANIMATION[pick]}`}>
+        <ChoiceFace label={label} extra={extra} active multiple={multiple} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Téléphone du client : la carte, puis la fenêtre des options qui s'ouvre,
+ * la cuisson et la sauce qui se cochent, et le prix qui passe de 22 à 24 €
+ * (boucle de 9 s, voir les animations « mock-* » de globals.css).
+ */
 export function PhoneMockup() {
   return (
     <div aria-hidden="true" className="relative mx-auto w-[17.5rem] select-none">
@@ -82,7 +115,11 @@ export function PhoneMockup() {
                       <span className="rounded-full bg-brand-soft px-1.5 py-0.5 text-[10px] font-semibold text-brand">
                         {formatPrice(dish.price)}
                       </span>
-                      <span className="rounded-full bg-brand px-2.5 py-1 text-[9px] font-semibold text-white">
+                      <span
+                        className={`rounded-full bg-brand px-2.5 py-1 text-[9px] font-semibold text-white ${
+                          dish.tapped ? "motion-loop animate-mock-tap" : ""
+                        }`}
+                      >
                         Ajouter
                       </span>
                     </div>
@@ -93,15 +130,15 @@ export function PhoneMockup() {
           </div>
 
           {/* Fenêtre des options, ouverte sur l'entrecôte. */}
-          <div className="absolute inset-0 bg-black/30" />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-[1.6rem] bg-surface px-4 pb-4 pt-4">
+          <div className="motion-loop absolute inset-0 animate-mock-dim bg-black/30" />
+          <div className="motion-loop absolute inset-x-0 bottom-0 animate-mock-sheet rounded-t-[1.6rem] bg-surface px-4 pb-4 pt-4">
             <p className="text-[13px] font-extrabold tracking-tight">Entrecôte grillée</p>
             <div className="mt-2 flex items-baseline justify-between">
               <p className="text-[11px] font-bold">Cuisson</p>
               <p className="text-[9px] font-semibold text-muted">Obligatoire</p>
             </div>
             <div className="mt-1.5 space-y-1">
-              <Choice label="Saignante" active />
+              <Choice label="Saignante" pick="first" />
               <Choice label="À point" />
             </div>
             <div className="mt-2.5 flex items-baseline justify-between">
@@ -109,11 +146,16 @@ export function PhoneMockup() {
               <p className="text-[9px] font-semibold text-muted">Plusieurs choix</p>
             </div>
             <div className="mt-1.5 space-y-1">
-              <Choice label="Sauce au poivre" extra={2} active multiple />
+              <Choice label="Sauce au poivre" extra={2} pick="second" multiple />
               <Choice label="Frites en plus" extra={3} multiple />
             </div>
-            <div className="mt-3 rounded-full bg-brand py-2.5 text-center text-[12px] font-semibold text-white">
-              Ajouter · {formatPrice(24)}
+            <div className="mt-3 grid rounded-full bg-brand py-2.5 text-center text-[12px] font-semibold text-white">
+              <span className="motion-loop animate-mock-unpick-2 opacity-0 [grid-area:1/1]">
+                Ajouter · {formatPrice(22)}
+              </span>
+              <span className="motion-loop animate-mock-pick-2 [grid-area:1/1]">
+                Ajouter · {formatPrice(24)}
+              </span>
             </div>
           </div>
         </div>
@@ -173,7 +215,7 @@ export function KitchenMockup() {
       </div>
 
       {/* Ticket 80 mm, tel qu'il sort de l'imprimante. */}
-      <div className="relative z-10 w-40 shrink-0 rotate-[5deg] bg-white px-3 pb-4 pt-3 font-sans text-black shadow-xl sm:-mb-8 sm:ml-3">
+      <div className="ticket-print relative z-10 w-40 shrink-0 rotate-[5deg] bg-white px-3 pb-4 pt-3 font-sans text-black shadow-xl sm:-mb-8 sm:ml-3">
         <p className="text-base font-extrabold leading-none">Table 4</p>
         <p className="text-[10px]">N° 012 · 20:14</p>
         <div className="my-1.5 border-t border-dashed border-black" />
