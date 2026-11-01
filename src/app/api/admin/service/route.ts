@@ -1,3 +1,4 @@
+import { orderClosureMessage, orderingRefusal } from "@/lib/access";
 import { requireSession } from "@/lib/auth";
 import { updateRestaurantService } from "@/lib/repo";
 import { normalizeOpeningHours, serviceRefusal } from "@/lib/service-hours";
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
  * Prise de commande du restaurant connecté : { ordersPaused?: boolean,
  * openingHours?: horaires | null }. Renvoie l'état à jour et, si les
  * commandes sont fermées en ce moment, la raison affichée aux clients.
+ * L'abonnement inactif prime sur la pause manuelle et les horaires.
  */
 export async function PATCH(request: Request) {
   // L'équipe peut fermer ou rouvrir les commandes pendant le service ; les
@@ -50,6 +52,6 @@ export async function PATCH(request: Request) {
   return Response.json({
     ordersPaused: restaurant.ordersPaused,
     openingHours: restaurant.openingHours,
-    closedReason: serviceRefusal(restaurant),
+    closedReason: orderClosureMessage(orderingRefusal(restaurant), serviceRefusal(restaurant)),
   });
 }

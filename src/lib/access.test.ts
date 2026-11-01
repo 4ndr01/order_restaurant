@@ -1,12 +1,18 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import {
+  ADMIN_SURFACES,
   CHECKOUT_TRIAL_MIN_LEAD_SECONDS,
+  ORDERS_UNAVAILABLE_MESSAGE,
   PAST_DUE_GRACE_DAYS,
   describeAccess,
+  describeAdminAccess,
   isBillingEnforced,
   joursLabel,
+  orderClosureMessage,
+  showSubscriptionLink,
   stripeCheckoutTrialEnd,
+  type AccessSnapshot,
 } from "./access";
 
 const NOW = new Date("2026-10-27T12:00:00.000Z");
@@ -148,6 +154,83 @@ describe("accès après l'essai", () => {
     assert.equal(access.phase, "disabled");
   });
 
+  it("laisse l'espace ouvert pour finir le service quand les nouvelles commandes sont fermées", () => {
+    const cases = [
+      describeAccess({
+        now: NOW,
+        trialEndsAt: at(-1000),
+        subscriptionStatus: null,
+        statusSince: null,
+        enforced: true,
+      }),
+      describeAccess({
+        now: NOW,
+        trialEndsAt: at(-DAY),
+        subscriptionStatus: "past_due",
+        statusSince: at(-PAST_DUE_GRACE_DAYS * DAY),
+        enforced: true,
+      }),
+    ];
+    for (const access of cases) {
+      assert.equal(access.acceptsOrders, false);
+      assert.equal(access.phase, "blocked");
+      assertAdminStaysOpen(access);
+    }
+  });
+
+  it("ne retire aucun écran pendant l'essai, l'abonnement, la grâce ou l'interrupteur coupé", () => {
+    const cases = [
+      describeAccess({
+        now: NOW,
+        trialEndsAt: at(14 * DAY),
+        subscriptionStatus: null,
+        statusSince: null,
+        enforced: true,
+      }),
+      describeAccess({
+        now: NOW,
+        trialEndsAt: at(-DAY),
+        subscriptionStatus: "active",
+        statusSince: at(-30 * DAY),
+        enforced: true,
+      }),
+      describeAccess({
+        now: NOW,
+        trialEndsAt: at(-DAY),
+        subscriptionStatus: "past_due",
+        statusSince: at(-(PAST_DUE_GRACE_DAYS - 1) * DAY),
+        enforced: true,
+      }),
+      describeAccess({
+        now: NOW,
+        trialEndsAt: at(-DAY),
+        subscriptionStatus: "canceled",
+        statusSince: null,
+        enforced: false,
+      }),
+    ];
+    for (const access of cases) {
+      assert.equal(access.acceptsOrders, true, access.phase);
+      assertAdminStaysOpen(access);
+    }
+  });
+
+  it("laisse le message d'abonnement primer sur une réouverture du service", () => {
+    assert.equal(
+      orderClosureMessage(ORDERS_UNAVAILABLE_MESSAGE, null),
+      ORDERS_UNAVAILABLE_MESSAGE,
+    );
+    assert.equal(
+      orderClosureMessage(ORDERS_UNAVAILABLE_MESSAGE, "Le restaurant ne prend plus de commande pour le moment."),
+      ORDERS_UNAVAILABLE_MESSAGE,
+    );
+    assert.equal(
+      orderClosureMessage(null, "Le restaurant est fermé."),
+      "Le restaurant est fermé.",
+    );
+    assert.equal(orderClosureMessage(null, null), null);
+  });
+
   it("transmet la fin d'essai restante et n'en crée pas une nouvelle", () => {
     const inTenDays = at(10 * DAY);
     assert.equal(stripeCheckoutTrialEnd(inTenDays, NOW), Math.floor(inTenDays.getTime() / 1000));
@@ -160,3 +243,15 @@ describe("accès après l'essai", () => {
     assert.equal(stripeCheckoutTrialEnd(null, NOW), null);
   });
 });
+
+function assertAdminStaysOpen(access: AccessSnapshot) {
+  const admin = describeAdminAccess(access);
+  assert.equal(admin.acceptsNewOrders, access.acceptsOrders);
+  assert.deepEqual(admin.surfaces, ADMIN_SURFACES);
+  for (const surface of ["kitchen", "orders", "export", "billing", "refunds"] as const) {
+    assert.equal(admin.surfaces.includes(surface), true, surface);
+  }
+  // L'équipe ne reçoit pas le lien d'abonnement, même quand la page reste ouverte.
+  assert.equal(showSubscriptionLink("team", admin), false);
+  assert.equal(showSubscriptionLink("owner", admin), true);
+}

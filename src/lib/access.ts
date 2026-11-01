@@ -38,6 +38,36 @@ export type AccessSnapshot = {
   graceDaysLeft: number;
 };
 
+/**
+ * Écrans de l'espace restaurant. Fermer les nouvelles commandes ne retire
+ * aucun d'eux : la cuisine finit le service, le responsable consulte et
+ * exporte, ouvre l'abonnement et rembourse une commande déjà payée.
+ * Menu, QR codes, Stripe et horaires ne créent pas de commande.
+ */
+export const ADMIN_SURFACES = [
+  "kitchen",
+  "orders",
+  "export",
+  "billing",
+  "refunds",
+  "menu",
+  "tables",
+  "payments",
+  "service",
+] as const;
+
+export type AdminSurface = (typeof ADMIN_SURFACES)[number];
+
+export type AdminAccess = {
+  /**
+   * Nouvelles commandes clients (carte, QR, paiement).
+   * Recopie `acceptsOrders` : cette fonction ne les rouvre jamais.
+   */
+  acceptsNewOrders: boolean;
+  /** Écrans qui restent utilisables, y compris abonnement inactif. */
+  surfaces: readonly AdminSurface[];
+};
+
 export class OrderingClosedError extends Error {
   constructor(message = ORDERS_UNAVAILABLE_MESSAGE) {
     super(message);
@@ -94,6 +124,38 @@ export function describeAccess(input: {
   }
 
   return { phase: "blocked", acceptsOrders: false, trialDaysLeft: 0, graceDaysLeft: 0 };
+}
+
+/**
+ * Ce que l'espace restaurant laisse faire pour un accès déjà calculé.
+ * Les nouvelles commandes suivent `acceptsOrders`. Le reste du compte
+ * reste ouvert pour terminer le service en cours et régulariser l'abonnement.
+ */
+export function describeAdminAccess(access: AccessSnapshot): AdminAccess {
+  return {
+    acceptsNewOrders: access.acceptsOrders,
+    surfaces: ADMIN_SURFACES,
+  };
+}
+
+/**
+ * Lien vers la page Abonnement. Jamais pour l'équipe : elle n'a que la cuisine,
+ * et un lien vers l'abonnement la ramène sur place sans rien ouvrir.
+ */
+export function showSubscriptionLink(role: "owner" | "team", access: AdminAccess): boolean {
+  return role === "owner" && access.surfaces.includes("billing");
+}
+
+/**
+ * Raison affichée pour la prise de commande. L'abonnement inactif prime
+ * sur une pause manuelle ou des horaires : rouvrir le service ne doit pas
+ * laisser croire que les clients peuvent à nouveau commander.
+ */
+export function orderClosureMessage(
+  subscriptionRefusal: string | null,
+  serviceMessage: string | null,
+): string | null {
+  return subscriptionRefusal ?? serviceMessage;
 }
 
 export function accessForRestaurant(restaurant: Restaurant, now = new Date()): AccessSnapshot {

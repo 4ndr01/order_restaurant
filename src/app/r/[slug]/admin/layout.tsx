@@ -3,7 +3,12 @@ import { redirect } from "next/navigation";
 import AdminAccessBanner from "@/components/AdminAccessBanner";
 import BrandMark from "@/components/BrandMark";
 import LogoutButton from "@/components/LogoutButton";
-import { accessForRestaurant } from "@/lib/access";
+import {
+  accessForRestaurant,
+  describeAdminAccess,
+  showSubscriptionLink,
+  type AdminSurface,
+} from "@/lib/access";
 import { getSession } from "@/lib/auth";
 import { BRAND_NAME } from "@/lib/brand";
 import { getRestaurantById } from "@/lib/repo";
@@ -24,25 +29,44 @@ export default async function AdminLayout({
   }
   const team = session.role === "team";
   const restaurant = await getRestaurantById(session.restaurantId);
-  // L'équipe ne gère pas l'abonnement : pas de bandeau d'essai pour elle.
-  const access = restaurant && !team ? accessForRestaurant(restaurant) : null;
-  const banner =
-    access && access.phase === "trial"
-      ? { phase: "trial" as const, daysLeft: access.trialDaysLeft }
-      : access && access.phase === "past_due"
-        ? { phase: "past_due" as const, daysLeft: access.graceDaysLeft }
-        : null;
+  const access = restaurant ? accessForRestaurant(restaurant) : null;
+  const admin = access ? describeAdminAccess(access) : null;
+  const surfaceOpen = (surface: AdminSurface) => !admin || admin.surfaces.includes(surface);
+  // L'équipe ne gère pas l'abonnement : pas de bandeau d'essai, et pas de lien
+  // vers une page que proxy.ts lui refuse. L'abonnement inactif, lui, la
+  // concerne : les nouvelles commandes sont en pause, la cuisine reste ouverte.
+  const banner = !admin
+    ? null
+    : !admin.acceptsNewOrders
+      ? {
+          phase: "blocked" as const,
+          audience: team ? ("team" as const) : ("owner" as const),
+          billingLink: showSubscriptionLink(team ? "team" : "owner", admin),
+        }
+      : team
+        ? null
+        : access?.phase === "trial"
+          ? { phase: "trial" as const, daysLeft: access.trialDaysLeft }
+          : access?.phase === "past_due"
+            ? { phase: "past_due" as const, daysLeft: access.graceDaysLeft }
+            : null;
   const base = `/r/${slug}/admin`;
-  const LINKS = team
-    ? [{ href: `${base}/cuisine`, label: "Cuisine" }]
-    : [
-        { href: base, label: "Tableau de bord" },
-        { href: `${base}/cuisine`, label: "Cuisine" },
-        { href: `${base}/menu`, label: "Menu" },
-        { href: `${base}/tables`, label: "QR codes" },
-        { href: `${base}/paiements`, label: "Paiements" },
-        { href: `${base}/abonnement`, label: "Abonnement" },
-      ];
+  const LINKS = (
+    team
+      ? surfaceOpen("kitchen")
+        ? [{ href: `${base}/cuisine`, label: "Cuisine" }]
+        : []
+      : [
+          surfaceOpen("orders") || surfaceOpen("export")
+            ? { href: base, label: "Tableau de bord" }
+            : null,
+          surfaceOpen("kitchen") ? { href: `${base}/cuisine`, label: "Cuisine" } : null,
+          surfaceOpen("menu") ? { href: `${base}/menu`, label: "Menu" } : null,
+          surfaceOpen("tables") ? { href: `${base}/tables`, label: "QR codes" } : null,
+          surfaceOpen("payments") ? { href: `${base}/paiements`, label: "Paiements" } : null,
+          surfaceOpen("billing") ? { href: `${base}/abonnement`, label: "Abonnement" } : null,
+        ]
+  ).filter((link): link is { href: string; label: string } => link !== null);
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
@@ -81,7 +105,16 @@ export default async function AdminLayout({
           ))}
         </nav>
       </header>
-      {banner ? <AdminAccessBanner slug={slug} phase={banner.phase} daysLeft={banner.daysLeft} /> : null}
+      {banner?.phase === "blocked" ? (
+        <AdminAccessBanner
+          slug={slug}
+          phase="blocked"
+          audience={banner.audience}
+          billingLink={banner.billingLink}
+        />
+      ) : banner ? (
+        <AdminAccessBanner slug={slug} phase={banner.phase} daysLeft={banner.daysLeft} />
+      ) : null}
       {children}
     </div>
   );
