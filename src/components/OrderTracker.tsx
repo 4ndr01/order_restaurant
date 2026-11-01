@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/client";
 import { formatPrice, formatTime } from "@/lib/format";
+import { LIVE_POLL_MS, orderNeedsLiveUpdates } from "@/lib/live-poll";
 import { optionsLabel } from "@/lib/menu-options";
 import { STATUS_LABELS, type Order, type OrderStatus } from "@/lib/types";
 
@@ -55,13 +56,26 @@ export default function OrderTracker({
 
   useEffect(() => {
     let active = true;
+    let timer: number | undefined;
+    // Une commande terminée ne doit plus réveiller la base, même si l'onglet
+    // revient au premier plan.
+    let finished = false;
+
+    function clearTimer() {
+      if (timer === undefined) return;
+      window.clearInterval(timer);
+      timer = undefined;
+    }
 
     async function refresh() {
       try {
         const data = await api<Order>(`/api/r/${restaurantSlug}/orders/${orderId}`);
-        if (active) {
-          setOrder(data);
-          setError(null);
+        if (!active) return;
+        setOrder(data);
+        setError(null);
+        if (!orderNeedsLiveUpdates(data)) {
+          finished = true;
+          clearTimer();
         }
       } catch (cause) {
         if (active) {
@@ -70,11 +84,29 @@ export default function OrderTracker({
       }
     }
 
-    refresh();
-    const timer = setInterval(refresh, 5000);
+    function arm() {
+      clearTimer();
+      if (!active || finished || document.visibilityState !== "visible") return;
+      timer = window.setInterval(() => refresh(), LIVE_POLL_MS);
+    }
+
+    if (document.visibilityState === "visible") {
+      refresh();
+      arm();
+    }
+    function onVisibility() {
+      if (document.visibilityState === "visible") {
+        refresh();
+        arm();
+      } else {
+        clearTimer();
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       active = false;
-      clearInterval(timer);
+      clearTimer();
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [restaurantSlug, orderId]);
 
