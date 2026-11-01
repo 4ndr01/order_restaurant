@@ -1,5 +1,6 @@
 import KitchenBoard from "@/components/KitchenBoard";
 import ServiceControls from "@/components/ServiceControls";
+import { orderClosureMessage, orderingRefusal } from "@/lib/access";
 import { getSession } from "@/lib/auth";
 import { getRestaurantById, listOrders } from "@/lib/repo";
 import { serviceRefusal } from "@/lib/service-hours";
@@ -25,7 +26,10 @@ export default async function KitchenPage() {
             initial={{
               ordersPaused: restaurant.ordersPaused,
               openingHours: restaurant.openingHours,
-              closedReason: serviceRefusal(restaurant),
+              closedReason: orderClosureMessage(
+                orderingRefusal(restaurant),
+                serviceRefusal(restaurant),
+              ),
             }}
           />
         )

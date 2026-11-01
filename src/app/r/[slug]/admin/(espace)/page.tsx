@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import ServiceControls from "@/components/ServiceControls";
 import TeamAccess from "@/components/TeamAccess";
+import { orderClosureMessage, orderingRefusal } from "@/lib/access";
 import { getOwnerSession, getTeamAccess } from "@/lib/auth";
 import { resolveBaseUrl } from "@/lib/base-url";
 import { formatPrice, parisDay } from "@/lib/format";
@@ -63,7 +64,7 @@ export default async function AdminHomePage({ params }: { params: Promise<{ slug
           initial={{
             ordersPaused: restaurant.ordersPaused,
             openingHours: restaurant.openingHours,
-            closedReason: serviceRefusal(restaurant),
+            closedReason: orderClosureMessage(orderingRefusal(restaurant), serviceRefusal(restaurant)),
           }}
         />
       )}
