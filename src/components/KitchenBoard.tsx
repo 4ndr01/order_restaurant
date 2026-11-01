@@ -11,6 +11,12 @@ import {
 import KitchenTickets from "@/components/KitchenTickets";
 import { api } from "@/lib/client";
 import { formatPrice, formatTime, minutesSince } from "@/lib/format";
+import {
+  SERVICE_STATE_EVENT,
+  kitchenPollDelayMs,
+  kitchenWakeDelayMs,
+  type ServiceClock,
+} from "@/lib/live-poll";
 import { optionsLabel } from "@/lib/menu-options";
 import { STATUS_LABELS, type Order, type OrderStatus } from "@/lib/types";
 
@@ -87,12 +93,15 @@ export default function KitchenBoard({
   initialOrders,
   serviceControls,
   canRefund = true,
+  initialService,
 }: {
   initialOrders: Order[];
   /** Faux pour l'équipe : annuler une commande payée rembourse le client. */
   canRefund?: boolean;
   /** Interrupteur des commandes, à portée de main pendant le service. */
   serviceControls?: ReactNode;
+  /** Horaires et pause au chargement : hors service, on n'interroge plus la base. */
+  initialService: ServiceClock;
 }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [showArchive, setShowArchive] = useState(false);
@@ -111,6 +120,10 @@ export default function KitchenBoard({
   const printingRef = useRef<Order[]>([]);
   const pendingPrint = useRef<Order[]>([]);
   const autoPrint = useSyncExternalStore(subscribeAutoPrint, readAutoPrint, () => false);
+  const [service, setService] = useState<ServiceClock>(initialService);
+  // Le premier affichage a déjà les commandes. Les changements suivants
+  // (réouverture, retour sur l'onglet) rechargent tout de suite.
+  const pollMounted = useRef(false);
   const autoPrintRef = useRef(autoPrint);
   useEffect(() => {
     autoPrintRef.current = autoPrint;
@@ -193,9 +206,62 @@ export default function KitchenBoard({
   }, [requestPrint]);
 
   useEffect(() => {
-    const timer = setInterval(refresh, 5000);
-    return () => clearInterval(timer);
-  }, [refresh]);
+    function onService(event: Event) {
+      const detail = (event as CustomEvent<ServiceClock>).detail;
+      if (!detail || typeof detail.ordersPaused !== "boolean") return;
+      setService({
+        ordersPaused: detail.ordersPaused,
+        openingHours: detail.openingHours ?? null,
+      });
+    }
+    window.addEventListener(SERVICE_STATE_EVENT, onService);
+    return () => window.removeEventListener(SERVICE_STATE_EVENT, onService);
+  }, []);
+
+  // Pas de rafraîchissement au premier affichage : la page apporte déjà
+  // les commandes. Ensuite, seulement tant que l'onglet est visible et que
+  // le restaurant prend des commandes. Hors horaires, un minuteur local
+  // attend l'ouverture sans rien demander au serveur.
+  useEffect(() => {
+    let timer: number | undefined;
+    let stopped = false;
+
+    function clearTimer() {
+      if (timer === undefined) return;
+      window.clearInterval(timer);
+      window.clearTimeout(timer);
+      timer = undefined;
+    }
+
+    function arm(immediate: boolean) {
+      clearTimer();
+      if (stopped) return;
+      const visible = document.visibilityState === "visible";
+      const now = new Date();
+      const delay = kitchenPollDelayMs(service, visible, now);
+      if (delay != null) {
+        if (immediate) refresh();
+        timer = window.setInterval(() => refresh(), delay);
+        return;
+      }
+      const wake = kitchenWakeDelayMs(service, visible, now);
+      if (wake == null) return;
+      timer = window.setTimeout(() => arm(true), wake);
+    }
+
+    const immediate = pollMounted.current;
+    pollMounted.current = true;
+    arm(immediate);
+    function onVisibility() {
+      arm(document.visibilityState === "visible");
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      stopped = true;
+      clearTimer();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [refresh, service]);
 
   async function changeStatus(orderId: string, status: OrderStatus) {
     const target = orders.find((order) => order.id === orderId);
@@ -231,7 +297,10 @@ export default function KitchenBoard({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">Écran cuisine</h1>
-          <p className="mt-1 text-sm text-muted">Actualisation automatique toutes les 5 secondes.</p>
+          <p className="mt-1 text-sm text-muted">
+            Mise à jour toutes les 5 secondes pendant le service, tant que cette page est affichée.
+            Fermé ou en arrière-plan, l&apos;écran laisse la base dormir.
+          </p>
           <button
             type="button"
             onClick={toggleSound}

@@ -146,6 +146,7 @@ export default async function PlatformDashboardPage() {
                       <Link
                         href={`/r/${restaurant.slug}/menu`}
                         target="_blank"
+                        prefetch={false}
                         className="text-sm text-muted hover:text-brand"
                       >
                         /r/{restaurant.slug} ↗

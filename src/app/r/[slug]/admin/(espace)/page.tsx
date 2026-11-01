@@ -100,6 +100,7 @@ export default async function AdminHomePage({ params }: { params: Promise<{ slug
           <Link
             key={card.href}
             href={card.href}
+            prefetch={false}
             className="card-float-sm rounded-3xl bg-surface p-5 transition hover:-translate-y-0.5"
           >
             <p className="font-semibold">{card.title}</p>

@@ -95,6 +95,24 @@ export function isOpenAt(hours: OpeningHours, now: Date): boolean {
   );
 }
 
+/**
+ * Minutes jusqu'au prochain début de créneau, ou null si le restaurant
+ * n'ouvre jamais. 0 n'arrive pas : un créneau déjà commencé est « ouvert ».
+ */
+export function minutesUntilNextOpening(hours: OpeningHours, now: Date): number | null {
+  const { day, minutes } = parisClock(now);
+  for (let offset = 0; offset <= 7; offset += 1) {
+    const dayIndex = (day + offset) % 7;
+    const next = (hours[dayIndex] ?? []).find(
+      (range) => offset > 0 || toMinutes(range.start) > minutes,
+    );
+    if (next) {
+      return offset * 24 * 60 + (toMinutes(next.start) - minutes);
+    }
+  }
+  return null;
+}
+
 /** « aujourd'hui à 18h30 », « demain à 11h30 », « lundi à 12h », ou null si jamais ouvert. */
 export function nextOpeningLabel(hours: OpeningHours, now: Date): string | null {
   const { day, minutes } = parisClock(now);

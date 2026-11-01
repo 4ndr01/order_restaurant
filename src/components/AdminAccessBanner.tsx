@@ -33,6 +33,7 @@ export default function AdminAccessBanner(
           {showBillingLink && (
             <Link
               href={href}
+              prefetch={false}
               className="inline-flex min-h-11 items-center rounded-full bg-red-900 px-4 text-sm font-semibold text-white"
             >
               Voir l&apos;abonnement
@@ -55,6 +56,7 @@ export default function AdminAccessBanner(
           </p>
           <Link
             href={href}
+            prefetch={false}
             className="inline-flex min-h-11 items-center rounded-full bg-amber-900 px-4 text-sm font-semibold text-white"
           >
             Mettre à jour
@@ -72,6 +74,7 @@ export default function AdminAccessBanner(
         </p>
         <Link
           href={href}
+          prefetch={false}
           className="inline-flex min-h-11 items-center rounded-full bg-brand px-4 text-sm font-semibold text-white transition hover:bg-brand-strong"
         >
           S&apos;abonner

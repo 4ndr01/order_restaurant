@@ -85,6 +85,7 @@ export default async function AdminLayout({
             {!team && (
               <Link
                 href={`/r/${slug}/menu`}
+                prefetch={false}
                 className="flex min-h-11 items-center rounded-full px-3 text-sm font-medium text-muted hover:bg-brand-soft hover:text-brand"
               >
                 Voir le site
@@ -98,6 +99,7 @@ export default async function AdminLayout({
             <Link
               key={link.href}
               href={link.href}
+              prefetch={false}
               className="flex min-h-11 shrink-0 items-center rounded-full bg-surface px-4 text-sm font-semibold text-foreground/80 transition hover:bg-brand-soft hover:text-brand"
             >
               {link.label}

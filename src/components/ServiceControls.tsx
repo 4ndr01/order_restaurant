@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/lib/client";
+import { SERVICE_STATE_EVENT } from "@/lib/live-poll";
 import {
   DAY_LABELS,
   MAX_RANGES_PER_DAY,
@@ -116,6 +117,7 @@ export default function ServiceControls({
         body: JSON.stringify(patch),
       });
       setState(next);
+      window.dispatchEvent(new CustomEvent(SERVICE_STATE_EVENT, { detail: next }));
       if (patch.openingHours !== undefined) {
         setDraft(next.openingHours);
         setSaved(true);

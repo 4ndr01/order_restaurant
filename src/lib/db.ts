@@ -28,7 +28,19 @@ function getClient(): postgres.Sql {
     // migration et Postgres refusait de l'exécuter (« cached plan must not
     // change result type », code 0A000), même après un redémarrage du site.
     // Les paramètres restent envoyés séparément du texte SQL.
-    client = postgres(connectionString, { ssl: "prefer", max: 5, prepare: false });
+    // idle_timeout et max_lifetime sont en secondes. Sans eux, postgres.js
+    // garde chaque connexion jusqu'à 30–60 minutes (max_lifetime par défaut)
+    // et n'en ferme aucune pour inactivité : le compute Neon ne peut pas
+    // s'éteindre tant que le processus Node tourne, même sans aucune requête.
+    // 20 s d'inactivité suffisent à enchaîner les requêtes d'une même page ;
+    // au-delà, la connexion se ferme et Neon s'endort après son propre délai.
+    client = postgres(connectionString, {
+      ssl: "prefer",
+      max: 5,
+      prepare: false,
+      idle_timeout: 20,
+      max_lifetime: 60 * 5,
+    });
   }
   return client;
 }
