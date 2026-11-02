@@ -1,14 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { legacyHostRedirectUrl } from "@/lib/base-url";
+import { canonicalHostRedirectUrl, legacyHostRedirectUrl } from "@/lib/base-url";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 
 export async function proxy(request: NextRequest) {
-  const redirectTo = legacyHostRedirectUrl(
-    request.headers,
-    request.nextUrl.pathname,
-    request.nextUrl.search,
-    request.method,
-  );
+  const redirectTo =
+    legacyHostRedirectUrl(
+      request.headers,
+      request.nextUrl.pathname,
+      request.nextUrl.search,
+      request.method,
+    ) ??
+    canonicalHostRedirectUrl(
+      request.headers,
+      request.nextUrl.pathname,
+      request.nextUrl.search,
+      request.method,
+    );
   if (redirectTo) {
     return NextResponse.redirect(redirectTo, 301);
   }
