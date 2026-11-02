@@ -3,6 +3,7 @@ import { afterEach, describe, it } from "node:test";
 import {
   CANONICAL_SITE_ORIGIN,
   LEGACY_RENDER_HOST,
+  canonicalHostRedirectUrl,
   configuredSiteUrl,
   legacyHostRedirectUrl,
   publicSiteUrl,
@@ -102,6 +103,164 @@ describe("redirection de l'ancien hôte", () => {
     assert.equal(legacyHostRedirectUrl(legacy, "/login", "", "POST"), null);
     assert.equal(
       legacyHostRedirectUrl(headers({ host: "wegood.kim" }), "/", "", "GET"),
+      null,
+    );
+  });
+});
+
+describe("redirection http et www vers la canonique", () => {
+  it("renvoie http://wegood.kim vers https://wegood.kim en conservant chemin et query", () => {
+    delete process.env.NEXT_PUBLIC_BASE_URL;
+    restore("NODE_ENV", "production");
+    const target = canonicalHostRedirectUrl(
+      headers({ host: "wegood.kim", "x-forwarded-proto": "http" }),
+      "/tarif",
+      "?offre=essai",
+      "GET",
+    );
+    assert.equal(target?.href, `${CANONICAL_SITE_ORIGIN}/tarif?offre=essai`);
+  });
+
+  it("renvoie www, en http comme en https, vers l'apex https", () => {
+    delete process.env.NEXT_PUBLIC_BASE_URL;
+    restore("NODE_ENV", "production");
+    const httpWww = canonicalHostRedirectUrl(
+      headers({ "x-forwarded-host": "www.wegood.kim", "x-forwarded-proto": "http" }),
+      "/",
+      "",
+      "HEAD",
+    );
+    const httpsWww = canonicalHostRedirectUrl(
+      headers({ host: "www.wegood.kim:443", "x-forwarded-proto": "https" }),
+      "/signup",
+      "",
+      "GET",
+    );
+    assert.equal(httpWww?.href, `${CANONICAL_SITE_ORIGIN}/`);
+    assert.equal(httpsWww?.href, `${CANONICAL_SITE_ORIGIN}/signup`);
+  });
+
+  it("ne redirige pas l'apex déjà en https, même si une valeur suivante dit http", () => {
+    delete process.env.NEXT_PUBLIC_BASE_URL;
+    restore("NODE_ENV", "production");
+    assert.equal(
+      canonicalHostRedirectUrl(
+        headers({ host: "wegood.kim", "x-forwarded-proto": "https,http" }),
+        "/",
+        "",
+        "GET",
+      ),
+      null,
+    );
+    assert.equal(
+      canonicalHostRedirectUrl(
+        headers({ host: "wegood.kim", "x-forwarded-proto": "https" }),
+        "/",
+        "",
+        "GET",
+      ),
+      null,
+    );
+  });
+
+  it("prend la première valeur quand le client est en http", () => {
+    delete process.env.NEXT_PUBLIC_BASE_URL;
+    restore("NODE_ENV", "production");
+    const target = canonicalHostRedirectUrl(
+      headers({ host: "wegood.kim", "x-forwarded-proto": "http, https" }),
+      "/",
+      "",
+      "GET",
+    );
+    assert.equal(target?.href, `${CANONICAL_SITE_ORIGIN}/`);
+  });
+
+  it("ne redirige pas sans schéma explicite, ni les API, ni les écritures", () => {
+    delete process.env.NEXT_PUBLIC_BASE_URL;
+    restore("NODE_ENV", "production");
+    const apex = headers({ host: "wegood.kim" });
+    const httpApex = headers({ host: "wegood.kim", "x-forwarded-proto": "http" });
+    assert.equal(canonicalHostRedirectUrl(apex, "/", "", "GET"), null);
+    assert.equal(canonicalHostRedirectUrl(httpApex, "/api/health", "", "GET"), null);
+    assert.equal(canonicalHostRedirectUrl(httpApex, "/api/stripe/webhook", "", "POST"), null);
+    assert.equal(canonicalHostRedirectUrl(httpApex, "/api/stripe/webhook", "", "GET"), null);
+    assert.equal(canonicalHostRedirectUrl(httpApex, "/login", "", "POST"), null);
+  });
+
+  it("ne redirige pas le développement, localhost, ni un hôte onrender.com", () => {
+    delete process.env.NEXT_PUBLIC_BASE_URL;
+    restore("NODE_ENV", "development");
+    assert.equal(
+      canonicalHostRedirectUrl(
+        headers({ host: "wegood.kim", "x-forwarded-proto": "http" }),
+        "/",
+        "",
+        "GET",
+      ),
+      null,
+    );
+
+    restore("NODE_ENV", "production");
+    assert.equal(
+      canonicalHostRedirectUrl(
+        headers({ host: "localhost:3000", "x-forwarded-proto": "http" }),
+        "/",
+        "",
+        "GET",
+      ),
+      null,
+    );
+    assert.equal(
+      canonicalHostRedirectUrl(
+        headers({ host: "order-restaurant-1.onrender.com", "x-forwarded-proto": "http" }),
+        "/",
+        "",
+        "GET",
+      ),
+      null,
+    );
+    assert.equal(
+      canonicalHostRedirectUrl(
+        headers({ host: "autre.onrender.com", "x-forwarded-proto": "https" }),
+        "/",
+        "",
+        "GET",
+      ),
+      null,
+    );
+  });
+
+  it("suit NEXT_PUBLIC_BASE_URL quand il définit une autre origine https", () => {
+    process.env.NEXT_PUBLIC_BASE_URL = "https://exemple.test/";
+    restore("NODE_ENV", "production");
+    const target = canonicalHostRedirectUrl(
+      headers({ host: "www.exemple.test", "x-forwarded-proto": "http" }),
+      "/tarif",
+      "",
+      "GET",
+    );
+    assert.equal(target?.href, "https://exemple.test/tarif");
+    assert.equal(
+      canonicalHostRedirectUrl(
+        headers({ host: "wegood.kim", "x-forwarded-proto": "http" }),
+        "/",
+        "",
+        "GET",
+      ),
+      null,
+    );
+  });
+
+  it("ne redirige pas si l'origine configurée n'est pas en https", () => {
+    process.env.NEXT_PUBLIC_BASE_URL = "http://wegood.kim";
+    restore("NODE_ENV", "production");
+    assert.equal(
+      canonicalHostRedirectUrl(
+        headers({ host: "wegood.kim", "x-forwarded-proto": "http" }),
+        "/",
+        "",
+        "GET",
+      ),
       null,
     );
   });

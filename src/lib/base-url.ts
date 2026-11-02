@@ -78,6 +78,20 @@ export function requestPublicHost(headers: Headers): string | null {
 }
 
 /**
+ * Schéma vu par le visiteur. Render termine le TLS : la connexion jusqu'à
+ * Next est en HTTP, donc l'URL interne reste `http:` même pour une page
+ * ouverte en HTTPS. Seul `X-Forwarded-Proto` indique le schéma d'origine.
+ * Un proxy peut en empiler plusieurs : la première valeur est celle du client.
+ * Absente, on ne devine pas (les sondes internes n'envoient souvent rien).
+ */
+function forwardedProto(headers: Headers): string | null {
+  const raw = headers.get("x-forwarded-proto");
+  if (!raw) return null;
+  const first = raw.split(",")[0]?.trim().toLowerCase();
+  return first || null;
+}
+
+/**
  * Cible de redirection 301 pour une navigation arrivée sur l'ancien hôte
  * Render. Null pour les routes `/api` (webhook Stripe, santé, commandes) et
  * pour toute méthode autre que GET ou HEAD, afin que ces appels continuent
@@ -95,6 +109,45 @@ export function legacyHostRedirectUrl(
 
   const query = search ? (search.startsWith("?") ? search : `?${search}`) : "";
   return new URL(`${pathname}${query}`, CANONICAL_SITE_ORIGIN);
+}
+
+/**
+ * 301 vers l'origine canonique (`publicSiteUrl`, https://wegood.kim sans www)
+ * pour un GET ou HEAD arrivé en HTTP, ou sur l'hôte www.
+ * Production seulement. L'hôte doit être exactement le canonique ou son www :
+ * localhost, le développement et *.onrender.com ne passent pas ici (l'ancien
+ * hôte Render reste géré par `legacyHostRedirectUrl`). Les autres méthodes
+ * ne le sont pas : une 301 transformerait un POST en GET et en perdrait le
+ * corps (formulaire, server action). Les routes `/api` non plus (santé
+ * Render, webhooks Stripe).
+ */
+export function canonicalHostRedirectUrl(
+  headers: Headers,
+  pathname: string,
+  search: string,
+  method: string,
+): URL | null {
+  if (process.env.NODE_ENV !== "production") return null;
+  if (method !== "GET" && method !== "HEAD") return null;
+  if (pathname === "/api" || pathname.startsWith("/api/")) return null;
+
+  const canonical = publicSiteUrl();
+  if (canonical.protocol !== "https:") return null;
+
+  const host = requestPublicHost(headers);
+  if (!host) return null;
+
+  const canonicalHost = canonical.hostname.toLowerCase();
+  const wwwHost = canonicalHost.startsWith("www.") ? null : `www.${canonicalHost}`;
+  const onApex = host === canonicalHost;
+  const onWww = wwwHost !== null && host === wwwHost;
+  if (!onApex && !onWww) return null;
+  // Sur l'apex, seulement un HTTP explicite. Un en-tête absent ou https
+  // ne doit pas rediriger : sinon une sonde, ou un en-tête mal lu, boucle.
+  if (onApex && forwardedProto(headers) !== "http") return null;
+
+  const query = search ? (search.startsWith("?") ? search : `?${search}`) : "";
+  return new URL(`${pathname}${query}`, canonical.origin);
 }
 
 function httpOrigin(value?: string | null): string | null {
