@@ -94,7 +94,13 @@ export default function TableOrderPage() {
                   "Les photos viennent du téléphone ou de l'ordinateur. Le fichier est réduit et enregistré sans les métadonnées d'origine, dont la position GPS. Les formats lus sont JPEG, PNG, WebP, ainsi que les photos HEIF et AVIF que certains téléphones produisent.",
                   "Vous restez seul vendeur. La commande passée sur le menu est un contrat entre le client et le restaurant. Le logiciel transmet la commande, il ne se substitue pas à la salle.",
                 ]}
-              />
+              >
+                <p className="mt-4 text-base leading-relaxed">
+                  <Link href="/menu-qr-code-restaurant" className="font-semibold text-brand hover:underline">
+                    Tenir le menu QR code du restaurant
+                  </Link>
+                </p>
+              </ArticleSection>
 
               <ArticleSection
                 id="cuisine"

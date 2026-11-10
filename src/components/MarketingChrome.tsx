@@ -43,6 +43,26 @@ export const GUIDE_PAGES = [
     label: "Poser les QR codes",
     text: "Créer, tester et imprimer un code par table, puis le placer en salle.",
   },
+  {
+    href: "/menu-qr-code-restaurant",
+    label: "Menu QR code",
+    text: "La carte en ligne du restaurant : prix, photos, allergènes et plats en rupture.",
+  },
+  {
+    href: "/commande-a-table-rennes",
+    label: "Commande à table à Rennes",
+    text: "Le même logiciel, pour une salle rennaise : tables, terrasse, horaires du midi et du soir.",
+  },
+  {
+    href: "/commande-a-table-bar-cafe",
+    label: "Bar et café",
+    text: "QR code au comptoir ou en terrasse, carte des boissons, service qui peut passer minuit.",
+  },
+  {
+    href: "/alternative-sunday",
+    label: "Alternative à Sunday",
+    text: `Ce que ${BRAND_NAME} fait pour commander et encaisser, et les questions à poser à chaque outil.`,
+  },
 ] as const;
 
 function SectionNav({ className }: { className: string }) {

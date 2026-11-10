@@ -138,7 +138,17 @@ export default function QrGuidePage() {
                   "Un code par table, celui qui porte son nom. Placez-le à hauteur de main, à plat, dégagé de l'assiette. Un support brillant renvoie la lumière dans l'appareil photo : un support mat se scanne plus sûrement. Après la pose, asseyez-vous à la place du client et scannez une fois, lumière de la salle allumée.",
                   "Le client n'a rien à installer. S'il hésite, montrez l'appareil photo du téléphone : le menu s'ouvre dans le navigateur, que le téléphone soit sur son réseau ou sur le wifi de la salle. Au comptoir, le client qui n'a pas scanné de table choisit « À emporter / au comptoir », ou vous posez le code d'une table renommée « Comptoir ».",
                 ]}
-              />
+              >
+                <p className="mt-4 text-base leading-relaxed">
+                  <Link href="/commande-a-table-bar-cafe" className="font-semibold text-brand hover:underline">
+                    Adapter la pose à un bar ou un café
+                  </Link>
+                  {" · "}
+                  <Link href="/commande-a-table-rennes" className="font-semibold text-brand hover:underline">
+                    Préparer une salle à Rennes
+                  </Link>
+                </p>
+              </ArticleSection>
 
               <ArticleSection
                 id="service"
