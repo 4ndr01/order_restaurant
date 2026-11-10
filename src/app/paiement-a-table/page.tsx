@@ -103,6 +103,10 @@ export default function TablePaymentPage() {
                   <Link href="/tarif" className="font-semibold text-brand hover:underline">
                     {`Voir le tarif : ${PRICE} après ${TRIAL_DAYS} jours d'essai`}
                   </Link>
+                  {" · "}
+                  <Link href="/alternative-sunday" className="font-semibold text-brand hover:underline">
+                    Comparer avec une application de paiement à table
+                  </Link>
                 </p>
               </ArticleSection>
 
