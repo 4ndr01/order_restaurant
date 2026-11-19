@@ -36,7 +36,7 @@ export const GUIDE_PAGES = [
   {
     href: "/paiement-a-table",
     label: "Paiement à table",
-    text: "L'encaissement Stripe sur le compte du restaurant, sans commission ajoutée au ticket.",
+    text: "Le client paie sa commande sur le compte Stripe du restaurant, sans commission ajoutée au ticket.",
   },
   {
     href: "/guide/qr-code-tables",
@@ -62,6 +62,34 @@ export const GUIDE_PAGES = [
     href: "/alternative-sunday",
     label: "Alternative à Sunday",
     text: `Ce que ${BRAND_NAME} fait pour commander et encaisser, et les questions à poser à chaque outil.`,
+  },
+] as const;
+
+export const CITY_PAGES = [
+  {
+    href: "/commande-a-table-saint-malo",
+    label: "Commande à table à Saint-Malo",
+    text: "Intra-muros et terrasse : fermer dehors sans retirer les codes, et laisser chaque convive envoyer sa commande.",
+  },
+  {
+    href: "/commande-a-table-vannes",
+    label: "Commande à table à Vannes",
+    text: "Le déjeuner avant le port : une galette, puis un dessert, deux commandes sur la même table.",
+  },
+  {
+    href: "/commande-a-table-nantes",
+    label: "Commande à table à Nantes",
+    text: "Le soir en ville : un service qui peut passer minuit, des tournées successives, le paiement en fin de table.",
+  },
+  {
+    href: "/commande-a-table-laval",
+    label: "Commande à table à Laval",
+    text: "Le service du midi avec une petite équipe : plat du jour en rupture, horaires différents selon le jour.",
+  },
+  {
+    href: "/commande-a-table-saint-brieuc",
+    label: "Commande à table à Saint-Brieuc",
+    text: "Brasserie de centre : la terrasse coupée par la pluie, le règlement au comptoir ou sur le téléphone.",
   },
 ] as const;
 
@@ -118,6 +146,13 @@ export function MarketingFooter() {
         <div className="flex flex-col gap-3">
           <nav aria-label="Guides" className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
             {GUIDE_PAGES.map((page) => (
+              <Link key={page.href} href={page.href} className="hover:text-brand">
+                {page.label}
+              </Link>
+            ))}
+          </nav>
+          <nav aria-label="Autour de Rennes" className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
+            {CITY_PAGES.map((page) => (
               <Link key={page.href} href={page.href} className="hover:text-brand">
                 {page.label}
               </Link>
@@ -188,21 +223,34 @@ export function TrialBand() {
   );
 }
 
+function PageLinks({ pages }: { pages: readonly { href: string; label: string; text: string }[] }) {
+  return (
+    <ul className="mt-4 space-y-3">
+      {pages.map((page) => (
+        <li key={page.href}>
+          <Link href={page.href} className="font-semibold text-brand hover:underline">
+            {page.label}
+          </Link>
+          <p className="mt-0.5 text-sm leading-relaxed text-muted">{page.text}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function RelatedPages({ current }: { current: string }) {
-  const pages = GUIDE_PAGES.filter((page) => page.href !== current);
+  const guides = GUIDE_PAGES.filter((page) => page.href !== current);
+  const cities = CITY_PAGES.filter((page) => page.href !== current);
   return (
     <nav aria-label="Pages liées" className="rounded-3xl bg-surface p-6">
       <h2 className="text-lg font-extrabold tracking-tight">À lire aussi</h2>
-      <ul className="mt-4 space-y-3">
-        {pages.map((page) => (
-          <li key={page.href}>
-            <Link href={page.href} className="font-semibold text-brand hover:underline">
-              {page.label}
-            </Link>
-            <p className="mt-0.5 text-sm leading-relaxed text-muted">{page.text}</p>
-          </li>
-        ))}
-      </ul>
+      <PageLinks pages={guides} />
+      {cities.length > 0 && (
+        <>
+          <h3 className="mt-8 text-base font-extrabold tracking-tight">Autour de Rennes</h3>
+          <PageLinks pages={cities} />
+        </>
+      )}
     </nav>
   );
 }

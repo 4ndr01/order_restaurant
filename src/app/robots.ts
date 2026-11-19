@@ -2,8 +2,9 @@ import type { MetadataRoute } from "next";
 import { publicSiteUrl } from "@/lib/base-url";
 
 /**
- * Le sitemap ne contient que les pages marketing. Le tarif est la section
- * /#tarif de l'accueil, pas une URL à part.
+ * Le sitemap liste les pages publiques : accueil, inscription, tarif, guides,
+ * pages locales, connexion et mentions. /tarif est une page à part, en plus
+ * de la section /#tarif de l'accueil.
  *
  * /r/<slug>/menu n'est pas listé ici : Google peut l'explorer et y lire le
  * noindex. Ces menus sont des interfaces de commande (QR code, plats saisis

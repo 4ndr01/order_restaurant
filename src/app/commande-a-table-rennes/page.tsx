@@ -131,6 +131,36 @@ export default function RennesTableOrderPage() {
                 </p>
               </ArticleSection>
 
+              <ArticleSection
+                id="alentours"
+                title="Autour de Rennes, le même logiciel"
+                paragraphs={[
+                  `Saint-Malo, Vannes, Nantes, Laval et Saint-Brieuc n'ont pas une offre à part. L'inscription, l'essai de ${TRIAL_DAYS} jours et l'abonnement de ${PRICE} sont ceux de n'importe quel restaurant en France. Personne n'est envoyé sur place. Ces pages décrivent comment une salle de ces villes peut s'en servir : le rythme d'un été intra-muros n'est pas celui d'un déjeuner de semaine à Laval.`,
+                ]}
+              >
+                <p className="mt-4 text-base leading-relaxed">
+                  <Link href="/commande-a-table-saint-malo" className="font-semibold text-brand hover:underline">
+                    Commande à table à Saint-Malo
+                  </Link>
+                  {" · "}
+                  <Link href="/commande-a-table-vannes" className="font-semibold text-brand hover:underline">
+                    Commande à table à Vannes
+                  </Link>
+                  {" · "}
+                  <Link href="/commande-a-table-nantes" className="font-semibold text-brand hover:underline">
+                    Commande à table à Nantes
+                  </Link>
+                  {" · "}
+                  <Link href="/commande-a-table-laval" className="font-semibold text-brand hover:underline">
+                    Commande à table à Laval
+                  </Link>
+                  {" · "}
+                  <Link href="/commande-a-table-saint-brieuc" className="font-semibold text-brand hover:underline">
+                    Commande à table à Saint-Brieuc
+                  </Link>
+                </p>
+              </ArticleSection>
+
               <FaqSection items={FAQ} />
               <RelatedPages current="/commande-a-table-rennes" />
             </div>

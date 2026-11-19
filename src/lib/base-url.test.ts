@@ -98,6 +98,18 @@ describe("redirection de l'ancien hôte", () => {
     assert.equal(legacyHostRedirectUrl(legacy, "/api/r/chez-kim/orders", "", "POST"), null);
   });
 
+  it("renvoie aussi le sitemap et robots.txt, que le proxy doit laisser passer", () => {
+    const legacy = headers({ host: LEGACY_RENDER_HOST });
+    assert.equal(
+      legacyHostRedirectUrl(legacy, "/sitemap.xml", "", "GET")?.href,
+      `${CANONICAL_SITE_ORIGIN}/sitemap.xml`,
+    );
+    assert.equal(
+      legacyHostRedirectUrl(legacy, "/robots.txt", "", "HEAD")?.href,
+      `${CANONICAL_SITE_ORIGIN}/robots.txt`,
+    );
+  });
+
   it("ne redirige pas les POST de pages ni l'hôte canonique", () => {
     const legacy = headers({ host: LEGACY_RENDER_HOST });
     assert.equal(legacyHostRedirectUrl(legacy, "/login", "", "POST"), null);

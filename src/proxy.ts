@@ -63,6 +63,12 @@ export const config = {
   matcher: [
     "/r/:slug/admin/:path*",
     "/api/admin/:path*",
+    // Le motif général écarte tout chemin qui contient un point. Sans ces
+    // deux lignes, /sitemap.xml et /robots.txt n'entrent pas dans la 301
+    // d'hôte : l'ancien hôte Render les sert en 200 au lieu de renvoyer vers
+    // https://wegood.kim. Les autres fichiers (favicon, images) restent exclus.
+    "/sitemap.xml",
+    "/robots.txt",
     // Pages seulement. `/api` est exclu : le webhook Stripe, la santé et les
     // autres appels de services externes restent servis sur les deux hôtes.
     "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
