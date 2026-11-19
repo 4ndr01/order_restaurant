@@ -1,7 +1,9 @@
 import Link from "next/link";
 import FeatureIcon, { type FeatureIconName } from "@/components/FeatureIcon";
 import { KitchenMockup, PhoneMockup } from "@/components/HomeMockups";
+import JsonLd from "@/components/JsonLd";
 import {
+  CITY_PAGES,
   GUIDE_PAGES,
   MarketingShell,
   PRICE,
@@ -165,6 +167,10 @@ export default function HomeLanding() {
               <Link href="/guide/qr-code-tables" className="font-semibold text-brand hover:underline">
                 Comment poser les QR codes
               </Link>
+              {" · "}
+              <Link href="/paiement-a-table" className="font-semibold text-brand hover:underline">
+                Le paiement à table
+              </Link>
             </p>
             <ol className="mt-10 grid gap-4 md:grid-cols-3">
               {STEPS.map((step, index) => (
@@ -297,6 +303,17 @@ export default function HomeLanding() {
 
         <section id="questions" aria-labelledby="questions-titre" className="scroll-mt-28 bg-surface">
           <div className="mx-auto w-full max-w-3xl px-5 py-16">
+            <JsonLd
+              data={{
+                "@context": "https://schema.org",
+                "@type": "FAQPage",
+                mainEntity: QUESTIONS.map((item) => ({
+                  "@type": "Question",
+                  name: item.q,
+                  acceptedAnswer: { "@type": "Answer", text: item.a },
+                })),
+              }}
+            />
             <h2 id="questions-titre" className={sectionTitle}>
               Questions fréquentes
             </h2>
@@ -336,6 +353,39 @@ export default function HomeLanding() {
                       <span className="mt-2 block text-sm leading-relaxed text-muted">{page.text}</span>
                     </span>
                     <span aria-hidden="true" className="text-xl text-brand">→</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section aria-labelledby="villes-titre" className="scroll-mt-28 bg-surface">
+          <div className="mx-auto w-full max-w-6xl px-5 py-16">
+            <h2 id="villes-titre" className={sectionTitle}>
+              Autour de Rennes
+            </h2>
+            <p className="mt-3 max-w-2xl text-lg text-muted">
+              Le même logiciel, le même tarif, pour une salle dont le service n&apos;a pas le rythme
+              rennais.{" "}
+              <Link href="/commande-a-table-rennes" className="font-semibold text-brand hover:underline">
+                La commande à table à Rennes
+              </Link>
+            </p>
+            <ul className="mt-8 grid gap-4 sm:grid-cols-2">
+              {CITY_PAGES.map((page) => (
+                <li key={page.href}>
+                  <Link
+                    href={page.href}
+                    className="card-float-sm flex h-full items-start justify-between gap-4 rounded-3xl bg-background p-6 transition hover:-translate-y-0.5"
+                  >
+                    <span>
+                      <span className="block text-lg font-bold">{page.label}</span>
+                      <span className="mt-2 block text-sm leading-relaxed text-muted">{page.text}</span>
+                    </span>
+                    <span aria-hidden="true" className="text-xl text-brand">
+                      →
+                    </span>
                   </Link>
                 </li>
               ))}
