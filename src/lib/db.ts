@@ -140,6 +140,14 @@ async function migrate(): Promise<void> {
       ADD COLUMN IF NOT EXISTS stripe_status_since timestamptz
   `;
   await backfillPlatformTrials();
+  // Emails de fin d'essai, un par restaurant : J-3 et le jour où l'essai
+  // se termine. Null tant que l'envoi n'a pas abouti, pour ne jamais
+  // renvoyer le même message. Voir src/lib/trial-email.ts.
+  await sql`
+    ALTER TABLE restaurants
+      ADD COLUMN IF NOT EXISTS trial_j3_email_sent_at timestamptz,
+      ADD COLUMN IF NOT EXISTS trial_ended_email_sent_at timestamptz
+  `;
   // Prise de commande : interrupteur manuel du restaurateur et horaires
   // (src/lib/service-hours.ts). Sans horaires, les commandes sont ouvertes
   // à toute heure, comme avant.

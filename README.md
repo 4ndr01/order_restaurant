@@ -72,6 +72,10 @@ Les pages ouvertes sur `https://order-restaurant-1.onrender.com` répondent par 
 - **Mot de passe oublié** : `/mot-de-passe-oublie` envoie un lien valable une heure (email via [Resend](https://resend.com), `RESEND_API_KEY`). Seule l'empreinte du jeton est stockée, jamais le jeton ; il est à usage unique et les autres jetons du compte sont invalidés à la réinitialisation. La réponse est identique que l'email existe ou non, pour ne pas révéler qui est inscrit.
   - ⚠️ Avec l'expéditeur de test `onboarding@resend.dev`, Resend n'accepte d'envoyer qu'à l'adresse du titulaire du compte Resend. Pour que les restaurateurs reçoivent réellement leur lien, il faut vérifier un domaine dans Resend et mettre `EMAIL_FROM` sur une adresse de ce domaine.
   - Les sessions déjà ouvertes ailleurs restent valides après un changement de mot de passe (jetons de session sans état, non révocables). Acceptable pour l'usage « j'ai oublié mon mot de passe » ; à revoir si un compte devait être compromis.
+- **Fin d'essai** : deux emails au responsable, une seule fois chacun. Trois jours avant la fin (calendrier de Paris, et jusqu'à l'heure de fin si le passage a été manqué), puis pendant 48 h après `trial_ends_at`. Pas d'envoi si un abonnement est déjà engagé dans le mode Stripe courant (actif, essai Stripe, pause, impayé). Le lien mène à `/r/<slug>/admin/abonnement`, sur `NEXT_PUBLIC_BASE_URL` ou `https://wegood.kim`.
+  - Le service gratuit sur Render s'endort sans visite, donc un cron du tableau Render (offre payante) n'est pas utilisé. Une fois par jour, un planificateur externe envoie `POST /api/cron/trial-emails` avec `Authorization: Bearer` (ou l'en-tête `x-cron-secret`) égal à `CRON_SECRET`. Vers 18 h, heure de Paris, le message du jour J part le jour même pour les essais déjà clos, et le lendemain pour ceux qui se terminent plus tard.
+  - Si cet appel manque, l'ouverture de l'espace restaurant par le responsable refait le même contrôle pour son restaurant.
+  - Variables : `CRON_SECRET`, et celles déjà utilisées pour le courrier (`RESEND_API_KEY`, `EMAIL_FROM`, `NEXT_PUBLIC_BASE_URL`).
 - Pas encore de vérification d'email à l'inscription, ni de comptes multiples par restaurant (un seul propriétaire) — à ajouter si le besoin se présente.
 
 ## Données
@@ -101,6 +105,7 @@ src/
       auth/                signup, login, logout
       r/[slug]/orders/     commandes publiques (passer, suivre) — scopées par slug
       admin/                menu, catégories, tables, QR, statuts — scopées par session
+      cron/trial-emails    rappels de fin d'essai, POST protégé par CRON_SECRET
   components/              OrderBoard, OrderTracker, KitchenBoard, MenuManager, TablesManager,
                            SignupForm, LoginForm, LogoutButton
   lib/

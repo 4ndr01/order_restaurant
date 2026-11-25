@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import AdminAccessBanner from "@/components/AdminAccessBanner";
 import BrandMark from "@/components/BrandMark";
@@ -12,6 +13,7 @@ import {
 import { getSession } from "@/lib/auth";
 import { BRAND_NAME } from "@/lib/brand";
 import { getRestaurantById } from "@/lib/repo";
+import { deliverDueTrialEmails } from "@/lib/trial-email-send";
 
 export default async function AdminLayout({
   children,
@@ -50,6 +52,18 @@ export default async function AdminLayout({
           : access?.phase === "past_due"
             ? { phase: "past_due" as const, daysLeft: access.graceDaysLeft }
             : null;
+  // Le cron externe peut manquer une journée (service endormi, planificateur
+  // en retard). L'ouverture de l'espace par le responsable rattrape alors
+  // le rappel de son restaurant, sans ralentir l'affichage.
+  if (!team && restaurant) {
+    const restaurantId = restaurant.id;
+    after(() => {
+      void deliverDueTrialEmails({ restaurantId }).catch((error) => {
+        console.error("Vérification des emails de fin d'essai impossible:", error);
+      });
+    });
+  }
+
   const base = `/r/${slug}/admin`;
   const LINKS = (
     team
