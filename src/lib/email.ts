@@ -14,6 +14,8 @@ export type EmailMessage = {
   to: string;
   subject: string;
   text: string;
+  /** Version HTML facultative. Le texte reste toujours envoyé. */
+  html?: string;
 };
 
 export async function sendEmail(message: EmailMessage): Promise<void> {
@@ -33,7 +35,13 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from, to: message.to, subject: message.subject, text: message.text }),
+    body: JSON.stringify({
+      from,
+      to: message.to,
+      subject: message.subject,
+      text: message.text,
+      ...(message.html ? { html: message.html } : {}),
+    }),
   });
 
   if (!response.ok) {
