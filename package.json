@@ -9,7 +9,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start -p ${PORT:-3000}",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:demo": "node --experimental-strip-types scripts/seed-demo.mjs"
   },
   "dependencies": {
     "jose": "^6.2.12",

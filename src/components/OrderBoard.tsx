@@ -1,7 +1,10 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import DemoTour, { RestartDemoTour } from "@/components/DemoTour";
 import LegalLinks from "@/components/LegalLinks";
+import { DEMO_TOUR_EVENT, DEMO_TOUR_STEPS, readTourState } from "@/lib/demo-tour";
 import { allergenLabels } from "@/lib/allergens";
 import { api } from "@/lib/client";
 import { formatPrice } from "@/lib/format";
@@ -29,6 +32,7 @@ export default function OrderBoard({
   menu,
   onlinePayment,
   closedMessage = null,
+  demoNotice = null,
 }: {
   restaurantSlug: string;
   restaurantName: string;
@@ -38,6 +42,8 @@ export default function OrderBoard({
   onlinePayment: boolean;
   /** Restaurant fermé (à la main ou hors horaires) : la carte reste consultable. */
   closedMessage?: string | null;
+  /** Bandeau de la démonstration. Présent : paiement au comptoir, pas d'email. */
+  demoNotice?: string | null;
 }) {
   const [cart, setCart] = useState<Cart>({});
   const [note, setNote] = useState("");
@@ -131,7 +137,7 @@ export default function OrderBoard({
         body: JSON.stringify({
           tableId: selectedTable,
           note,
-          customerEmail: onlinePayment ? "" : customerEmail,
+          customerEmail: onlinePayment || demoNotice ? "" : customerEmail,
           lines: lines.map((line) => ({
             menuItemId: line.item.id,
             quantity: line.quantity,
@@ -154,14 +160,39 @@ export default function OrderBoard({
   }
 
   const categories = menu.categories;
+  const addAnchorId = demoNotice
+    ? (menu.items.find((item) => item.optionGroups.length === 0)?.id ?? null)
+    : null;
+  const optionsAnchorId = demoNotice
+    ? (menu.items.find((item) => item.optionGroups.length > 0)?.id ?? null)
+    : null;
+
+  useEffect(() => {
+    if (!demoNotice) return;
+    function openCartForTour() {
+      let storage: Storage | null = null;
+      try {
+        storage = window.sessionStorage;
+      } catch {
+        storage = null;
+      }
+      const tour = readTourState(storage);
+      if (!tour.dismissed && DEMO_TOUR_STEPS[tour.step]?.id === "valider") {
+        setCartOpen(true);
+      }
+    }
+    openCartForTour();
+    window.addEventListener(DEMO_TOUR_EVENT, openCartForTour);
+    return () => window.removeEventListener(DEMO_TOUR_EVENT, openCartForTour);
+  }, [demoNotice]);
 
   return (
     <div className={`flex min-h-full flex-col ${count > 0 ? "pb-32" : "pb-10"}`}>
       <header className="sticky top-0 z-20 bg-background/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-5 pt-5">
-          <div>
+          <div data-tour={demoNotice ? "menu" : undefined}>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">
-              Commande en ligne
+              {demoNotice ? "Démonstration" : "Commande en ligne"}
             </p>
             <h1 className="mt-0.5 text-2xl font-extrabold tracking-tight">{restaurantName}</h1>
           </div>
@@ -183,6 +214,18 @@ export default function OrderBoard({
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-5">
+        {demoNotice && (
+          <div className="mt-5 rounded-xl border border-brand/15 bg-brand-soft px-4 py-3 text-sm leading-relaxed text-brand">
+            <p>
+              {demoNotice}{" "}
+              <Link href={`/r/${restaurantSlug}/cuisine`} className="font-semibold underline">
+                Voir la cuisine
+              </Link>
+            </p>
+            <RestartDemoTour page="menu" slug={restaurantSlug} />
+          </div>
+        )}
+
         {closedMessage && (
           <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
             {closedMessage} Vous pouvez consulter la carte en attendant.
@@ -209,6 +252,7 @@ export default function OrderBoard({
                   return (
                     <li
                       key={item.id}
+                      data-tour={item.id === optionsAnchorId ? "options" : undefined}
                       className="card-float-sm flex items-start gap-4 rounded-3xl bg-surface p-4"
                     >
                       {item.photoUrl && (
@@ -239,7 +283,10 @@ export default function OrderBoard({
                         <AllergenLine codes={item.allergens} />
                         {/* Prix et bouton sur la même ligne : le texte garde toute la
                             largeur, même à côté d'une photo. */}
-                        <div className="mt-2 flex items-center justify-between gap-3">
+                        <div
+                          className="mt-2 flex items-center justify-between gap-3"
+                          data-tour={item.id === addAnchorId ? "ajouter" : undefined}
+                        >
                           <p className="inline-flex rounded-full bg-brand-soft px-2.5 py-1 text-sm font-semibold text-brand">
                             {formatPrice(item.price)}
                           </p>
@@ -365,6 +412,8 @@ export default function OrderBoard({
         />
       )}
 
+      {demoNotice && <DemoTour page="menu" slug={restaurantSlug} />}
+
       {cartOpen && canOrder && (
         <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center">
           <button
@@ -432,7 +481,7 @@ export default function OrderBoard({
             )}
 
             {/* En paiement en ligne, Stripe demande l'email et le reçu part à cette adresse. */}
-            {!onlinePayment && (
+            {!onlinePayment && !demoNotice && (
               <label className="mt-4 block text-sm">
                 <span className="font-medium text-muted">
                   Votre email <span className="font-normal">(facultatif, pour recevoir le reçu)</span>
@@ -468,6 +517,7 @@ export default function OrderBoard({
               {sendError && <p className="mb-3 text-sm text-red-600">{sendError}</p>}
               <button
                 type="button"
+                data-tour={demoNotice ? "valider" : undefined}
                 onClick={submitOrder}
                 disabled={sending || lines.length === 0}
                 className="card-float min-h-14 w-full rounded-full bg-brand px-5 font-semibold text-white transition hover:bg-brand-strong disabled:opacity-50"
@@ -483,6 +533,11 @@ export default function OrderBoard({
               {onlinePayment && (
                 <p className="mt-2 text-center text-xs text-muted">
                   Paiement sécurisé par Stripe · carte, Apple Pay, Google Pay
+                </p>
+              )}
+              {demoNotice && (
+                <p className="mt-2 text-center text-xs text-muted">
+                  Paiement au comptoir · aucun débit
                 </p>
               )}
             </div>

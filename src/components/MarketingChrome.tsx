@@ -8,6 +8,11 @@ export const PRICE = formatPlanPrice(ANNOUNCED_PLAN.priceCents);
 export const TRIAL_DAYS = TRIAL_PERIOD_DAYS;
 export const PLAN_LABEL = ANNOUNCED_PLAN.label;
 export const TRIAL_CTA = `Essayer gratuitement ${TRIAL_DAYS} jours`;
+export const DEMO_HREF = "/demo";
+export const DEMO_CTA = "Essayer la démo";
+
+export const secondaryCta =
+  "min-h-12 items-center justify-center rounded-full bg-surface px-6 text-center text-base font-semibold text-foreground transition hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
 
 export const primaryCta =
   "card-float min-h-12 items-center justify-center rounded-full bg-brand px-6 text-center text-base font-semibold text-white transition hover:bg-brand-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
@@ -19,6 +24,7 @@ const SECTIONS = [
   { href: "/#fonctionnement", label: "Fonctionnement" },
   { href: "/#avantages", label: "Avantages" },
   { href: "/tarif", label: "Tarif" },
+  { href: DEMO_HREF, label: "Démo" },
   { href: "/#questions", label: "Questions" },
 ] as const;
 
@@ -159,6 +165,9 @@ export function MarketingFooter() {
             ))}
           </nav>
           <nav aria-label="Compte" className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
+            <Link href={DEMO_HREF} className="hover:text-brand">
+              {DEMO_CTA}
+            </Link>
             <Link href="/signup" className="hover:text-brand">
               Créer mon restaurant
             </Link>
@@ -204,7 +213,7 @@ export function TrialBand() {
         <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-white/90">
           {`Créez votre espace aujourd'hui. L'essai de ${TRIAL_DAYS} jours démarre à l'inscription, sans carte bancaire. Ensuite, ${PRICE}.`}
         </p>
-        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap">
           <Link
             href="/signup"
             className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-surface px-6 font-semibold text-brand transition hover:bg-brand-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto"
@@ -216,6 +225,12 @@ export function TrialBand() {
             className="inline-flex min-h-12 w-full items-center justify-center rounded-full px-6 font-semibold text-white underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto"
           >
             Déjà inscrit ? Se connecter
+          </Link>
+          <Link
+            href={DEMO_HREF}
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-full px-6 font-semibold text-white underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto"
+          >
+            {DEMO_CTA}
           </Link>
         </div>
       </div>

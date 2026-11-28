@@ -139,6 +139,12 @@ async function migrate(): Promise<void> {
       ADD COLUMN IF NOT EXISTS trial_ends_at timestamptz,
       ADD COLUMN IF NOT EXISTS stripe_status_since timestamptz
   `;
+  // Démonstration publique. Seul ce drapeau exempte de la facturation,
+  // des emails d'essai et de l'encaissement Stripe. Le seed le pose.
+  await sql`
+    ALTER TABLE restaurants
+      ADD COLUMN IF NOT EXISTS is_demo boolean NOT NULL DEFAULT false
+  `;
   await backfillPlatformTrials();
   // Emails de fin d'essai, un par restaurant : J-3 et le jour où l'essai
   // se termine. Null tant que l'envoi n'a pas abouti, pour ne jamais
@@ -303,6 +309,7 @@ export async function backfillPlatformTrials(): Promise<void> {
     SET trial_started_at = now(),
         trial_ends_at = now() + (${TRIAL_PERIOD_DAYS} * interval '1 day')
     WHERE trial_ends_at IS NULL
+      AND NOT is_demo
       AND NOT (
         stripe_billing_mode IS NOT DISTINCT FROM ${mode}
         AND COALESCE(stripe_subscription_status, '') IN ('trialing', 'active', 'past_due', 'paused')
@@ -313,6 +320,7 @@ export async function backfillPlatformTrials(): Promise<void> {
     SET trial_started_at = COALESCE(trial_started_at, now()),
         trial_ends_at = COALESCE(trial_ends_at, now())
     WHERE trial_ends_at IS NULL
+      AND NOT is_demo
       AND stripe_billing_mode IS NOT DISTINCT FROM ${mode}
       AND stripe_subscription_status IN ('trialing', 'active', 'past_due', 'paused')
   `;

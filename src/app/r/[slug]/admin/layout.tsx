@@ -55,7 +55,7 @@ export default async function AdminLayout({
   // Le cron externe peut manquer une journée (service endormi, planificateur
   // en retard). L'ouverture de l'espace par le responsable rattrape alors
   // le rappel de son restaurant, sans ralentir l'affichage.
-  if (!team && restaurant) {
+  if (!team && restaurant && !restaurant.isDemo) {
     const restaurantId = restaurant.id;
     after(() => {
       void deliverDueTrialEmails({ restaurantId }).catch((error) => {

@@ -35,6 +35,8 @@ export type TrialEmailChoice = {
   j3SentAt: Date | null;
   endedSentAt: Date | null;
   billingEnforced: boolean;
+  /** Restaurant de démonstration : aucun rappel, même si un essai est daté. */
+  isDemo?: boolean;
 };
 
 const longDate = new Intl.DateTimeFormat("fr-FR", {
@@ -63,6 +65,7 @@ export function shiftIsoDay(ymd: string, days: number): string {
  * terminé, le message « se mettront en pause » n'a plus lieu d'être.
  */
 export function selectTrialEmail(input: TrialEmailChoice): TrialEmailKind | null {
+  if (input.isDemo) return null;
   if (!input.billingEnforced || !input.trialEndsAt) return null;
   if (input.subscriptionApplies && subscriptionKeepsPaidPlan(input.subscriptionStatus)) return null;
 

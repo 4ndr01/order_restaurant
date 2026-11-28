@@ -69,17 +69,23 @@ export default async function PlatformDashboardPage() {
   }
 
   const restaurants = await getPlatformOverview();
+  const counted = restaurants.filter((restaurant) => !restaurant.isDemo);
   const sum = (pick: (restaurant: PlatformRestaurant) => number) =>
-    restaurants.reduce((total, restaurant) => total + pick(restaurant), 0);
+    counted.reduce((total, restaurant) => total + pick(restaurant), 0);
 
   const views7d = sum((r) => r.views7d);
   const orders7d = sum((r) => r.orders7d);
+  const demoCount = restaurants.length - counted.length;
 
   const stats = [
     {
       label: "Restaurants",
-      value: String(restaurants.length),
-      hint: `${restaurants.filter((r) => r.stripeStatus === "actif").length} avec paiement en ligne`,
+      value: String(counted.length),
+      hint: `${counted.filter((r) => r.stripeStatus === "actif").length} avec paiement en ligne${
+        demoCount > 0
+          ? ` · ${demoCount} démo${demoCount > 1 ? "s" : ""} non comptée${demoCount > 1 ? "s" : ""}`
+          : ""
+      }`,
     },
     { label: "Commandes aujourd'hui", value: String(sum((r) => r.ordersToday)) },
     { label: "Commandes sur 7 jours", value: String(orders7d) },
@@ -137,7 +143,7 @@ export default async function PlatformDashboardPage() {
           <ul className="mt-4 grid gap-4 md:grid-cols-2">
             {restaurants.map((restaurant) => {
               const badge = STRIPE_BADGES[restaurant.stripeStatus];
-              const dormant = restaurant.orders7d === 0;
+              const dormant = !restaurant.isDemo && restaurant.orders7d === 0;
               return (
                 <li key={restaurant.id} className="card-float-sm rounded-3xl bg-surface p-5">
                   <div className="flex items-start justify-between gap-3">
@@ -153,7 +159,8 @@ export default async function PlatformDashboardPage() {
                       </Link>
                     </div>
                     <span className="shrink-0 text-xs text-muted">
-                      Inscrit le {dateFormat.format(new Date(restaurant.createdAt))}
+                      {restaurant.isDemo ? "Démo · " : "Inscrit le "}
+                      {dateFormat.format(new Date(restaurant.createdAt))}
                     </span>
                   </div>
 
@@ -167,10 +174,22 @@ export default async function PlatformDashboardPage() {
                   )}
 
                   <span
-                    className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-bold ${badge.className}`}
+                    className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+                      restaurant.isDemo ? "bg-brand-soft text-brand" : badge.className
+                    }`}
                   >
-                    {badge.label}
+                    {restaurant.isDemo ? "Démonstration · paiement au comptoir" : badge.label}
                   </span>
+                  {restaurant.isDemo && (
+                    <Link
+                      href={`/r/${restaurant.slug}/cuisine`}
+                      target="_blank"
+                      prefetch={false}
+                      className="mt-2 block text-sm font-semibold text-brand hover:underline"
+                    >
+                      Cuisine en lecture seule
+                    </Link>
+                  )}
 
                   <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
                     {[

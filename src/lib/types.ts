@@ -36,6 +36,11 @@ export type Restaurant = {
   ordersPaused: boolean;
   /** Horaires de prise de commande, null si le restaurant prend des commandes à toute heure. */
   openingHours: OpeningHours | null;
+  /**
+   * Démonstration publique. Les commandes restent ouvertes sans abonnement,
+   * et aucun paiement Stripe n'est créé.
+   */
+  isDemo: boolean;
 };
 
 export type Category = {

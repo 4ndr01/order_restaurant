@@ -28,6 +28,7 @@ const NOINDEX_SOURCES = [
   "/r/:slug/table/:path*",
   "/r/:slug/commande/:path*",
   "/r/:slug/equipe",
+  "/r/:slug/cuisine",
   "/r/:slug/menu",
 ];
 

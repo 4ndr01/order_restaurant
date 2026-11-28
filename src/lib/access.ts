@@ -27,7 +27,7 @@ export const ORDERS_UNAVAILABLE_MESSAGE =
 
 const OPEN_SUBSCRIPTION = new Set(["active", "trialing", "paused"]);
 
-export type AccessPhase = "disabled" | "subscribed" | "trial" | "past_due" | "blocked";
+export type AccessPhase = "disabled" | "subscribed" | "trial" | "past_due" | "blocked" | "demo";
 
 export type AccessSnapshot = {
   phase: AccessPhase;
@@ -99,8 +99,17 @@ export function describeAccess(input: {
   subscriptionStatus: string | null;
   statusSince: Date | null;
   enforced: boolean;
+  /**
+   * Restaurant de démonstration (`restaurants.is_demo`).
+   * Les commandes restent ouvertes, essai terminé ou non, abonnement ou non.
+   */
+  isDemo?: boolean;
 }): AccessSnapshot {
   const trialDaysLeft = input.trialEndsAt ? wholeDaysLeft(input.trialEndsAt, input.now) : 0;
+
+  if (input.isDemo) {
+    return { phase: "demo", acceptsOrders: true, trialDaysLeft, graceDaysLeft: 0 };
+  }
 
   if (!input.enforced) {
     return { phase: "disabled", acceptsOrders: true, trialDaysLeft, graceDaysLeft: 0 };
@@ -165,6 +174,7 @@ export function accessForRestaurant(restaurant: Restaurant, now = new Date()): A
     subscriptionStatus: restaurant.stripeSubscriptionStatus,
     statusSince: restaurant.stripeStatusSince ? new Date(restaurant.stripeStatusSince) : null,
     enforced: isBillingEnforced(),
+    isDemo: restaurant.isDemo,
   });
 }
 

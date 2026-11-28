@@ -1,4 +1,5 @@
 import { requireSession } from "@/lib/auth";
+import { DEMO_COUNTER_MESSAGE } from "@/lib/demo";
 import { resolveBaseUrl } from "@/lib/base-url";
 import { openOnboarding } from "@/lib/payments";
 import { getOwnerEmail, getRestaurantById } from "@/lib/repo";
@@ -22,6 +23,9 @@ export async function POST(request: Request) {
   const restaurant = await getRestaurantById(restaurantId);
   if (!restaurant) {
     return Response.json({ error: "Restaurant introuvable." }, { status: 404 });
+  }
+  if (restaurant.isDemo) {
+    return Response.json({ error: DEMO_COUNTER_MESSAGE }, { status: 403 });
   }
 
   try {
