@@ -28,6 +28,7 @@ type Row = {
   stripe_billing_mode: string | null;
   trial_j3_email_sent_at: Date | null;
   trial_ended_email_sent_at: Date | null;
+  is_demo: boolean;
   owner_email: string;
 };
 
@@ -40,6 +41,7 @@ type Group = {
   billingMode: string | null;
   j3SentAt: Date | null;
   endedSentAt: Date | null;
+  isDemo: boolean;
   emails: string[];
 };
 
@@ -71,10 +73,12 @@ export async function deliverDueTrialEmails(scope?: {
       r.stripe_billing_mode,
       r.trial_j3_email_sent_at,
       r.trial_ended_email_sent_at,
+      r.is_demo,
       o.email AS owner_email
     FROM restaurants r
     INNER JOIN restaurant_owners o ON o.restaurant_id = r.id
-    WHERE r.trial_ends_at IS NOT NULL
+    WHERE r.is_demo = false
+      AND r.trial_ends_at IS NOT NULL
       AND (${restaurantId}::text IS NULL OR r.id = ${restaurantId})
       AND (
         (
@@ -105,6 +109,7 @@ export async function deliverDueTrialEmails(scope?: {
       j3SentAt: group.j3SentAt,
       endedSentAt: group.endedSentAt,
       billingEnforced: true,
+      isDemo: group.isDemo,
     });
     if (!kind) continue;
     if (group.emails.length === 0) {
@@ -168,6 +173,7 @@ function groupRows(rows: Row[]): Group[] {
       billingMode: row.stripe_billing_mode,
       j3SentAt: row.trial_j3_email_sent_at,
       endedSentAt: row.trial_ended_email_sent_at,
+      isDemo: row.is_demo,
       emails: [],
     };
     const email = row.owner_email.trim();

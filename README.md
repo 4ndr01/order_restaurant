@@ -74,7 +74,7 @@ Les pages ouvertes sur `https://order-restaurant-1.onrender.com` répondent par 
   - Les sessions déjà ouvertes ailleurs restent valides après un changement de mot de passe (jetons de session sans état, non révocables). Acceptable pour l'usage « j'ai oublié mon mot de passe » ; à revoir si un compte devait être compromis.
 - **Fin d'essai** : deux emails au responsable, une seule fois chacun. Trois jours avant la fin (calendrier de Paris, et jusqu'à l'heure de fin si le passage a été manqué), puis pendant 48 h après `trial_ends_at`. Pas d'envoi si un abonnement est déjà engagé dans le mode Stripe courant (actif, essai Stripe, pause, impayé). Le lien mène à `/r/<slug>/admin/abonnement`, sur `NEXT_PUBLIC_BASE_URL` ou `https://wegood.kim`.
   - Le service gratuit sur Render s'endort sans visite, donc un cron du tableau Render (offre payante) n'est pas utilisé. Une fois par jour, un planificateur externe envoie `POST /api/cron/trial-emails` avec `Authorization: Bearer` (ou l'en-tête `x-cron-secret`) égal à `CRON_SECRET`. Vers 18 h, heure de Paris, le message du jour J part le jour même pour les essais déjà clos, et le lendemain pour ceux qui se terminent plus tard.
-  - Si cet appel manque, l'ouverture de l'espace restaurant par le responsable refait le même contrôle pour son restaurant.
+  - Si cet appel manque, l'ouverture de l'espace restaurant par le responsable refait le même contrôle pour son restaurant. Le restaurant de démonstration (`is_demo`) n'est jamais inclus.
   - Variables : `CRON_SECRET`, et celles déjà utilisées pour le courrier (`RESEND_API_KEY`, `EMAIL_FROM`, `NEXT_PUBLIC_BASE_URL`).
 - Pas encore de vérification d'email à l'inscription, ni de comptes multiples par restaurant (un seul propriétaire) — à ajouter si le besoin se présente.
 
@@ -117,11 +117,37 @@ src/
   proxy.ts                 vérifie la session sur /r/[slug]/admin/* et /api/admin/*
 ```
 
+## Démonstration publique
+
+Une carte fictive, **Le Bistrot (démo)**, permet d'essayer le parcours QR sans compte : `/demo` explique, `/r/demo/menu` est la carte, `/r/demo/cuisine` est l'écran cuisine en lecture seule. Le slug par défaut est `demo` (`DEMO_RESTAURANT_SLUG` pour en choisir un autre).
+
+Un tutoriel en six bulles (menu, ajout d'un plat, options et allergènes, validation, cuisine, inscription) s'affiche seulement sur cette démo. « Passer » le ferme, « Revoir le tutoriel » le relance. Il ne charge aucune librairie supplémentaire.
+
+Le restaurant est marqué `is_demo`. Cette colonne, ajoutée au démarrage (`ADD COLUMN IF NOT EXISTS`), est la seule exemption :
+
+- les commandes restent ouvertes même si l'essai est terminé (`describeAccess`) ;
+- aucun paiement Stripe n'est créé : la commande part en cuisine avec un règlement au comptoir ;
+- les emails de fin d'essai ne partent pas ;
+- les commandes de plus de 24 heures sont effacées ;
+- l'adresse email saisie sur la carte n'est pas enregistrée.
+
+Le seed est idempotent. Il ne convertit jamais un restaurant déjà inscrit sous ce slug.
+
+```bash
+# DATABASE_URL du Postgres visé (production ou local). Ne pas committer la chaîne.
+DATABASE_URL="postgresql://..." npm run seed:demo
+```
+
+Sans variable dans le shell, le script lit `.env.local` puis `.env`. Le premier affichage de `/demo` ou de la carte lance le même seed si le slug est libre : utile si le script n'a pas été lancé, mais le script montre tout de suite un slug déjà pris.
+
+La page `/contact` donne `contact@wegood.kim` (lien `mailto`) et un formulaire. Le message part avec Resend (`RESEND_API_KEY`, expéditeur `EMAIL_FROM`) vers cette adresse, avec un champ caché et une limite de 5 envois par heure et par adresse IP. `EMAIL_FROM` doit être une adresse d'un domaine vérifié dans Resend, sinon Resend refuse l'envoi vers `contact@wegood.kim`. Le lien `mailto` reste utilisable dans tous les cas.
+
 ## Scripts
 
 ```bash
-npm run dev     # développement
-npm run build   # build de production
-npm run start   # serveur de production
-npm run lint    # ESLint
+npm run dev       # développement
+npm run build     # build de production
+npm run start     # serveur de production
+npm run lint      # ESLint
+npm run seed:demo # crée ou met à jour le restaurant de démonstration
 ```

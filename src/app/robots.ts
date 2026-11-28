@@ -27,6 +27,7 @@ export default function robots(): MetadataRoute.Robots {
         "/r/*/admin",
         "/r/*/table",
         "/r/*/commande",
+        "/r/*/cuisine",
         "/r/*/equipe",
       ],
     },

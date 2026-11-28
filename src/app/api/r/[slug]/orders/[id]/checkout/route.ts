@@ -1,4 +1,5 @@
 import { orderingRefusal } from "@/lib/access";
+import { DEMO_COUNTER_MESSAGE } from "@/lib/demo";
 import { resolveBaseUrl } from "@/lib/base-url";
 import { refreshOrderPayment } from "@/lib/payments";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
@@ -25,6 +26,9 @@ export async function POST(
   }
   if (order.paymentStatus !== "en_attente") {
     return Response.json({ order });
+  }
+  if (restaurant.isDemo) {
+    return Response.json({ error: DEMO_COUNTER_MESSAGE }, { status: 403 });
   }
   const refusal = orderingRefusal(restaurant);
   if (refusal) {

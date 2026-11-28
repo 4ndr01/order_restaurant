@@ -4,6 +4,8 @@ import Analytics from "@/components/Analytics";
 import FaqSection, { type FaqItem } from "@/components/FaqSection";
 import {
   ArticleSection,
+  DEMO_CTA,
+  DEMO_HREF,
   MarketingShell,
   PLAN_LABEL,
   PRICE,
@@ -12,6 +14,7 @@ import {
   TRIAL_DAYS,
   TrialBand,
   primaryCta,
+  secondaryCta,
 } from "@/components/MarketingChrome";
 import { BRAND_NAME } from "@/lib/brand";
 import { publicPageMetadata } from "@/lib/seo";
@@ -84,9 +87,12 @@ export default function PricingPage() {
             <p className="mt-5 text-lg leading-relaxed text-muted">
               {`${BRAND_NAME} tient la commande à table des restaurants en France : menu par QR code, écran cuisine, et paiement en ligne si vous le souhaitez. Un seul abonnement, ${PLAN_LABEL}, à ${PRICE}. L'essai de ${TRIAL_DAYS} jours commence à l'inscription et ne demande pas de carte.`}
             </p>
-            <div className="mt-8">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link href="/signup" className={`${primaryCta} inline-flex w-full sm:w-auto`}>
                 {TRIAL_CTA}
+              </Link>
+              <Link href={DEMO_HREF} className={`${secondaryCta} inline-flex w-full sm:w-auto`}>
+                {DEMO_CTA}
               </Link>
             </div>
 

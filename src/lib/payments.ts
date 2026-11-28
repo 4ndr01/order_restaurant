@@ -1,6 +1,7 @@
 import "server-only";
 import type Stripe from "stripe";
 import { OrderingClosedError, orderingRefusal } from "./access";
+import { DEMO_COUNTER_MESSAGE } from "./demo";
 import { optionsLabel } from "./menu-options";
 import { sendOrderReceipt } from "./order-receipt";
 import {
@@ -105,6 +106,9 @@ export async function ensureConnectedAccount(
   restaurant: Restaurant,
   ownerEmail: string | null,
 ): Promise<string> {
+  if (restaurant.isDemo) {
+    throw new Error(DEMO_COUNTER_MESSAGE);
+  }
   if (restaurant.stripeAccountId) {
     return restaurant.stripeAccountId;
   }
@@ -257,6 +261,9 @@ export async function createCheckoutForOrder(
   order: Order,
   baseUrl: string,
 ): Promise<string> {
+  if (restaurant.isDemo) {
+    throw new OrderingClosedError(DEMO_COUNTER_MESSAGE);
+  }
   const refusal = orderingRefusal(restaurant);
   if (refusal) {
     throw new OrderingClosedError(refusal);

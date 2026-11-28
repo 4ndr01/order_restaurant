@@ -5,20 +5,19 @@ import JsonLd from "@/components/JsonLd";
 import {
   CITY_PAGES,
   GUIDE_PAGES,
+  DEMO_CTA,
+  DEMO_HREF,
   MarketingShell,
   PRICE,
   TrialBand,
   TRIAL_CTA,
   TRIAL_DAYS,
   primaryCta,
+  secondaryCta,
 } from "@/components/MarketingChrome";
 import { ANNOUNCED_PLAN } from "@/lib/plans";
 
 const PLAN_NAME = `Abonnement ${ANNOUNCED_PLAN.label}`;
-
-// Sans « display » : chaque bouton choisit le sien (le secondaire est masqué sur téléphone).
-const secondaryCta =
-  "min-h-12 items-center justify-center rounded-full bg-surface px-6 text-center text-base font-semibold text-foreground transition hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
 
 const sectionTitle = "text-3xl font-extrabold tracking-tight text-balance sm:text-4xl";
 
@@ -134,9 +133,12 @@ export default function HomeLanding() {
                 cuisine reçoit tout en direct. L&apos;argent arrive sur votre compte, sans
                 commission.
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link href="/signup" className={`${primaryCta} inline-flex w-full sm:w-auto`}>
                   {TRIAL_CTA}
+                </Link>
+                <Link href={DEMO_HREF} className={`${secondaryCta} inline-flex w-full sm:w-auto`}>
+                  {DEMO_CTA}
                 </Link>
                 {/* Sur téléphone, « Se connecter » est déjà dans l'en-tête. */}
                 <Link href="/login" className={`${secondaryCta} hidden sm:inline-flex`}>
@@ -293,7 +295,13 @@ export default function HomeLanding() {
               <Link href="/signup" className={`${primaryCta} mt-8 inline-flex w-full`}>
                 {TRIAL_CTA}
               </Link>
-              <p className="mt-4 text-center text-sm leading-relaxed text-muted">
+              <p className="mt-4 text-center text-sm leading-relaxed">
+                <Link href={DEMO_HREF} className="font-semibold text-brand hover:underline">
+                  {DEMO_CTA}
+                </Link>
+                <span className="text-muted">, sans créer de compte.</span>
+              </p>
+              <p className="mt-2 text-center text-sm leading-relaxed text-muted">
                 Aucune carte à l&apos;inscription. Abonnement sans engagement, résiliable à tout
                 moment depuis votre espace.
               </p>

@@ -16,6 +16,8 @@ export type EmailMessage = {
   text: string;
   /** Version HTML facultative. Le texte reste toujours envoyé. */
   html?: string;
+  /** Adresse de réponse, distincte de l'expéditeur. */
+  replyTo?: string;
 };
 
 export async function sendEmail(message: EmailMessage): Promise<void> {
@@ -41,6 +43,7 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
       subject: message.subject,
       text: message.text,
       ...(message.html ? { html: message.html } : {}),
+      ...(message.replyTo ? { reply_to: message.replyTo } : {}),
     }),
   });
 

@@ -5,6 +5,7 @@ import { normalizeOptionGroups, resolveOptions } from "./menu-options";
 import { normalizeOpeningHours, serviceRefusal, type OpeningHours } from "./service-hours";
 import { createId, ensureSchema, sql } from "./db";
 import { orderingRefusal } from "./access";
+import { DEMO_ORDER_TTL_HOURS } from "./demo";
 import { LAUNCH_PLAN, subscriptionOutranks } from "./plans";
 import { currentStripeMode, type StripeMode } from "./stripe-mode";
 import type {
@@ -114,6 +115,7 @@ type RestaurantRow = {
   stripe_status_since: Date | null;
   orders_paused: boolean;
   opening_hours: unknown;
+  is_demo: boolean;
 };
 
 function iso(value: Date | null): string | null {
@@ -141,7 +143,7 @@ function mapRestaurant(row: RestaurantRow): Restaurant {
     plan: row.plan,
     priceCents: row.price_cents,
     stripeAccountId,
-    onlinePayment: Boolean(stripeAccountId) && row.stripe_charges_enabled,
+    onlinePayment: !row.is_demo && Boolean(stripeAccountId) && row.stripe_charges_enabled,
     stripeCustomerId: billingHere ? row.stripe_customer_id : null,
     stripeSubscriptionId: billingHere ? row.stripe_subscription_id : null,
     stripeSubscriptionStatus: billingHere ? row.stripe_subscription_status : null,
@@ -151,6 +153,7 @@ function mapRestaurant(row: RestaurantRow): Restaurant {
     stripeStatusSince: billingHere ? iso(row.stripe_status_since) : null,
     ordersPaused: row.orders_paused,
     openingHours: normalizeOpeningHours(row.opening_hours),
+    isDemo: row.is_demo,
   };
 }
 
@@ -159,7 +162,8 @@ function restaurantColumns() {
     id, slug, name, plan, price_cents, stripe_account_id, stripe_charges_enabled,
     stripe_account_mode, stripe_customer_id, stripe_subscription_id,
     stripe_subscription_status, stripe_billing_mode, stripe_trial_consumed,
-    trial_started_at, trial_ends_at, stripe_status_since, orders_paused, opening_hours
+    trial_started_at, trial_ends_at, stripe_status_since, orders_paused, opening_hours,
+    is_demo
   `;
 }
 
@@ -700,6 +704,22 @@ export async function getTable(
 
 // ---- Commandes ----
 
+/**
+ * Efface les commandes de démo trop anciennes. Le EXISTS empêche d'effacer
+ * les commandes d'un restaurant qui ne serait pas marqué `is_demo`.
+ */
+export async function purgeExpiredDemoOrders(restaurantId: string): Promise<void> {
+  await ensureSchema();
+  await sql`
+    DELETE FROM orders
+    WHERE restaurant_id = ${restaurantId}
+      AND created_at < now() - (${DEMO_ORDER_TTL_HOURS} * interval '1 hour')
+      AND EXISTS (
+        SELECT 1 FROM restaurants WHERE id = ${restaurantId} AND is_demo = true
+      )
+  `;
+}
+
 type IncomingLine = { menuItemId?: unknown; quantity?: unknown; optionIds?: unknown };
 
 export async function createOrder(
@@ -719,7 +739,11 @@ export async function createOrder(
   if (!restaurant) {
     return { error: "Restaurant introuvable." };
   }
-  const refusal = orderingRefusal(restaurant) ?? serviceRefusal(restaurant);
+  if (restaurant.isDemo) {
+    await purgeExpiredDemoOrders(restaurant.id);
+  }
+  // La démo reste ouverte même si quelqu'un a posé une pause ou des horaires.
+  const refusal = orderingRefusal(restaurant) ?? (restaurant.isDemo ? null : serviceRefusal(restaurant));
   if (refusal) {
     return { error: refusal, closed: true };
   }
@@ -769,11 +793,13 @@ export async function createOrder(
   }
 
   const total = Math.round(lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0) * 100) / 100;
+  // Filet : une démo ne passe jamais par Stripe, même si l'appelant le demande.
+  const paymentRequired = Boolean(input.paymentRequired) && !restaurant.isDemo;
   // Stripe refuse les paiements sous 0,50 €.
-  if (input.paymentRequired && total < 0.5) {
+  if (paymentRequired && total < 0.5) {
     return { error: "Le paiement en ligne demande une commande d'au moins 0,50 €." };
   }
-  const paymentStatus: PaymentStatus = input.paymentRequired ? "en_attente" : "non_requis";
+  const paymentStatus: PaymentStatus = paymentRequired ? "en_attente" : "non_requis";
   const id = createId();
   const tableName = table?.name ?? "À emporter";
 
@@ -791,7 +817,7 @@ export async function createOrder(
         lines, total, note, status, payment_status
       ) VALUES (
         ${id}, ${restaurantId}, ${next}, ${table?.id ?? null}, ${tableName},
-        ${input.customerEmail ?? null}, ${tx.json(lines)}, ${total}, ${input.note}, 'recue',
+        ${restaurant.isDemo ? null : (input.customerEmail ?? null)}, ${tx.json(lines)}, ${total}, ${input.note}, 'recue',
         ${paymentStatus}
       )
       RETURNING *
@@ -1055,6 +1081,7 @@ export type PlatformRestaurant = {
   id: string;
   slug: string;
   name: string;
+  isDemo: boolean;
   ownerEmail: string | null;
   createdAt: string;
   stripeStatus: "inactif" | "inscription" | "actif";
@@ -1071,6 +1098,7 @@ type PlatformRow = {
   id: string;
   slug: string;
   name: string;
+  is_demo: boolean;
   owner_email: string | null;
   created_at: Date;
   stripe_account_id: string | null;
@@ -1094,7 +1122,7 @@ export async function getPlatformOverview(): Promise<PlatformRestaurant[]> {
   await ensureSchema();
   const rows = await sql<PlatformRow[]>`
     SELECT
-      r.id, r.slug, r.name, r.created_at, r.stripe_account_id, r.stripe_charges_enabled,
+      r.id, r.slug, r.name, r.is_demo, r.created_at, r.stripe_account_id, r.stripe_charges_enabled,
       r.stripe_account_mode,
       (
         SELECT ow.email FROM restaurant_owners ow
@@ -1126,6 +1154,7 @@ export async function getPlatformOverview(): Promise<PlatformRestaurant[]> {
     id: row.id,
     slug: row.slug,
     name: row.name,
+    isDemo: row.is_demo,
     ownerEmail: row.owner_email,
     createdAt: row.created_at.toISOString(),
     stripeStatus: !usableStripeAccount(row.stripe_account_id, row.stripe_account_mode)

@@ -1,9 +1,10 @@
 import { OrderingClosedError } from "@/lib/access";
 import { resolveBaseUrl } from "@/lib/base-url";
+import { loadGuestRestaurant } from "@/lib/demo-seed";
 import { sendOrderReceipt } from "@/lib/order-receipt";
 import { createCheckoutForOrder } from "@/lib/payments";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
-import { createOrder, getRestaurantBySlug, markOrderPaymentExpired } from "@/lib/repo";
+import { createOrder, listOrders, markOrderPaymentExpired, purgeExpiredDemoOrders } from "@/lib/repo";
 import { isStripeConfigured } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,26 @@ export const dynamic = "force-dynamic";
 // automatisé évident est arrêté.
 const MAX_ORDERS = 30;
 const WINDOW_MS = 60_000;
+
+const MAX_DEMO_READS = 60;
+
+/** Cuisine publique de la démo : pas d'email client, pas d'autre restaurant. */
+export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const limit = rateLimit(`demo-orders:${slug}:${clientIp(request)}`, MAX_DEMO_READS, WINDOW_MS);
+  if (!limit.allowed) {
+    return tooManyRequests(limit.retryAfterSeconds, "Trop de rafraîchissements. Patientez un instant.");
+  }
+  const restaurant = await loadGuestRestaurant(slug);
+  if (!restaurant?.isDemo) {
+    return Response.json({ error: "Restaurant introuvable." }, { status: 404 });
+  }
+  await purgeExpiredDemoOrders(restaurant.id);
+  const orders = await listOrders(restaurant.id);
+  return Response.json({
+    orders: orders.map((order) => ({ ...order, customerEmail: null })),
+  });
+}
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -24,7 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       "Trop de commandes envoyées coup sur coup. Patientez un instant avant de réessayer.",
     );
   }
-  const restaurant = await getRestaurantBySlug(slug);
+  const restaurant = await loadGuestRestaurant(slug);
   if (!restaurant) {
     return Response.json({ error: "Restaurant introuvable." }, { status: 404 });
   }
@@ -38,13 +59,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const note = typeof body.note === "string" ? body.note.trim().slice(0, 300) : "";
   const tableId = typeof body.tableId === "string" && body.tableId ? body.tableId : null;
 
-  const rawEmail = typeof body.customerEmail === "string" ? body.customerEmail.trim() : "";
+  const rawEmail = restaurant.isDemo
+    ? ""
+    : typeof body.customerEmail === "string"
+      ? body.customerEmail.trim()
+      : "";
   if (rawEmail && (rawEmail.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail))) {
     return Response.json({ error: "Adresse email invalide." }, { status: 400 });
   }
   const customerEmail = rawEmail ? rawEmail.toLowerCase() : null;
 
-  const paymentRequired = restaurant.onlinePayment && isStripeConfigured();
+  const paymentRequired = !restaurant.isDemo && restaurant.onlinePayment && isStripeConfigured();
   const result = await createOrder(restaurant.id, {
     tableId,
     note,
@@ -78,7 +103,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     }
   }
 
-  if (result.customerEmail) {
+  if (result.customerEmail && !restaurant.isDemo) {
     try {
       await sendOrderReceipt(
         result,

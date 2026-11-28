@@ -70,6 +70,21 @@ describe("accès après l'essai", () => {
     assert.equal(access.trialDaysLeft, 1);
   });
 
+  it("laisse la démonstration ouverte, essai terminé et abonnement annulé", () => {
+    const access = describeAccess({
+      now: NOW,
+      trialEndsAt: at(-30 * DAY),
+      subscriptionStatus: "canceled",
+      statusSince: null,
+      enforced: true,
+      isDemo: true,
+    });
+    assert.equal(access.acceptsOrders, true);
+    assert.equal(access.phase, "demo");
+    assert.equal(access.graceDaysLeft, 0);
+    assertAdminStaysOpen(access);
+  });
+
   it("ferme les commandes quand l'essai est terminé et qu'il n'y a pas d'abonnement", () => {
     const access = describeAccess({
       now: NOW,

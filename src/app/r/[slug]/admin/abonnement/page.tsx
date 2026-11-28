@@ -128,18 +128,22 @@ export default async function SubscriptionPage({
     ? formatPlanPrice(ANNOUNCED_PLAN.priceCents)
     : access.phase === "trial"
       ? joursLabel(access.trialDaysLeft)
-      : access.phase === "blocked"
-        ? formatPlanPrice(ANNOUNCED_PLAN.priceCents)
-        : formatPlanPrice(restaurant.priceCents);
+      : access.phase === "demo"
+        ? "Démonstration"
+        : access.phase === "blocked"
+          ? formatPlanPrice(ANNOUNCED_PLAN.priceCents)
+          : formatPlanPrice(restaurant.priceCents);
   const formula = subscribed
     ? ANNOUNCED_PLAN.label
     : access.phase === "trial"
       ? "Essai gratuit"
-      : access.phase === "disabled"
-        ? "Lancement"
-        : "Sans abonnement";
+      : access.phase === "demo"
+        ? "Démonstration"
+        : access.phase === "disabled"
+          ? "Lancement"
+          : "Sans abonnement";
 
-  const subscribeLabel = !billingOpen || subscribed
+  const subscribeLabel = !billingOpen || subscribed || restaurant.isDemo
     ? null
     : `S'abonner (${formatPlanPrice(ANNOUNCED_PLAN.priceCents)})`;
   const manageLabel = restaurant.stripeCustomerId

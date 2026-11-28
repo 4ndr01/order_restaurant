@@ -193,6 +193,9 @@ export async function openSubscriptionCheckout(
   email: string | null,
   baseUrl: string,
 ): Promise<string> {
+  if (restaurant.isDemo) {
+    throw new BillingRequestError("Le restaurant de démonstration n'a pas d'abonnement.", 403);
+  }
   const priceId = await assertConfiguredPrice();
   const customerId = await ensureCustomer(restaurant, email);
   const fresh = (await getRestaurantById(restaurant.id)) ?? restaurant;

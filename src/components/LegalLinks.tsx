@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BRAND_NAME } from "@/lib/brand";
 
 const LINKS = [
+  { href: "/contact", label: "Contact" },
   { href: "/mentions-legales", label: "Mentions légales" },
   { href: "/cgu", label: "Conditions d'utilisation" },
   { href: "/confidentialite", label: "Confidentialité" },

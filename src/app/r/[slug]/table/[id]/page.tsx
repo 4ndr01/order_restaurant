@@ -4,7 +4,9 @@ import MenuViewBeacon from "@/components/MenuViewBeacon";
 import OrderBoard from "@/components/OrderBoard";
 import OrdersUnavailable from "@/components/OrdersUnavailable";
 import { orderingRefusal } from "@/lib/access";
-import { getPublicMenu, getRestaurantBySlug } from "@/lib/repo";
+import { demoMenuNotice } from "@/lib/demo";
+import { loadGuestRestaurant } from "@/lib/demo-seed";
+import { getPublicMenu } from "@/lib/repo";
 import { serviceRefusal } from "@/lib/service-hours";
 import { isStripeConfigured } from "@/lib/stripe";
 
@@ -16,7 +18,7 @@ export default async function TablePage({
   params: Promise<{ slug: string; id: string }>;
 }) {
   const { slug, id } = await params;
-  const restaurant = await getRestaurantBySlug(slug);
+  const restaurant = await loadGuestRestaurant(slug);
   if (!restaurant) {
     notFound();
   }
@@ -39,8 +41,9 @@ export default async function TablePage({
         restaurantName={restaurant.name}
         tableId={id}
         menu={menu}
-        onlinePayment={restaurant.onlinePayment && isStripeConfigured()}
-        closedMessage={serviceRefusal(restaurant)}
+        onlinePayment={!restaurant.isDemo && restaurant.onlinePayment && isStripeConfigured()}
+        closedMessage={restaurant.isDemo ? null : serviceRefusal(restaurant)}
+        demoNotice={restaurant.isDemo ? demoMenuNotice() : null}
       />
     </>
   );

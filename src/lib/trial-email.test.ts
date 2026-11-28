@@ -126,6 +126,7 @@ describe("choix de l'email de fin d'essai", () => {
 
   it("reste silencieux sans date de fin, ou quand l'exigence d'abonnement est coupée", () => {
     assert.equal(selectTrialEmail(choice({ trialEndsAt: null })), null);
+    assert.equal(selectTrialEmail(choice({ isDemo: true })), null);
     assert.equal(selectTrialEmail(choice({ billingEnforced: false })), null);
     assert.equal(
       selectTrialEmail(choice({ now: END, billingEnforced: false })),

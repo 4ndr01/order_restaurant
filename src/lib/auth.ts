@@ -12,6 +12,7 @@ import {
   type SessionPayload,
 } from "./session";
 import { CURRENT_PLAN, TRIAL_PERIOD_DAYS } from "./plans";
+import { isDemoSlug } from "./demo";
 import { isSlugTaken } from "./repo";
 import type { Restaurant } from "./types";
 
@@ -127,6 +128,9 @@ export async function signup(
   if (!/^[a-z0-9-]{3,60}$/.test(slug)) {
     return { error: "L'adresse doit faire au moins 3 caractères (lettres, chiffres, tirets)." };
   }
+  if (isDemoSlug(slug)) {
+    return { error: "Cette adresse est réservée à la démonstration. Choisissez-en une autre." };
+  }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { error: "Adresse email invalide." };
   }
@@ -188,6 +192,7 @@ export async function signup(
       stripeStatusSince: null,
       ordersPaused: false,
       openingHours: null,
+      isDemo: false,
     },
     session,
   };
